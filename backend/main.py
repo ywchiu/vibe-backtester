@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from api.routes import router
+from api.ma_routes import router as ma_router
 
 # 載入環境變數
 load_dotenv()
@@ -22,19 +23,20 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS 設定
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:8080").split(",")
+# CORS 設定 - 開發環境允許所有來源
+cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # 註冊路由
 app.include_router(router)
+app.include_router(ma_router)
 
 
 @app.get("/")
