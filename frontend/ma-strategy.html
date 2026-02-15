@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MA 黃金交叉策略回測 - BackTester</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        /* ============== 全域設定 ============== */
+        :root {
+            --bs-primary: #0d6efd;
+            --bs-success: #198754;
+            --bs-danger: #dc3545;
+            --bs-warning: #ffc107;
+            --bs-info: #0dcaf0;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* ============== 導航列 ============== */
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+
+        /* ============== 卡片樣式 ============== */
+        .card {
+            border-radius: 0.75rem;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .card-header {
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 1rem 1.25rem;
+        }
+
+        .card-header h5, .card-header h6 {
+            font-weight: 600;
+        }
+
+        /* ============== 快速新增按鈕 ============== */
+        .quick-add-btn {
+            border-radius: 2rem;
+            padding: 0.375rem 1rem;
+            font-size: 0.875rem;
+            transition: all 0.15s ease;
+        }
+
+        .quick-add-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .quick-add-btn.active {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+        }
+
+        /* ============== Loading 覆蓋層 ============== */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.9);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ============== 績效指標卡片 ============== */
+        .metric-card {
+            border-radius: 0.5rem;
+            text-align: center;
+            padding: 1.25rem 0.75rem;
+        }
+
+        .metric-card h4 {
+            font-weight: 700;
+            margin-bottom: 0;
+        }
+
+        .metric-card h6 {
+            font-size: 0.8rem;
+        }
+
+        /* ============== 報酬率顏色 ============== */
+        .return-positive {
+            color: #198754;
+            font-weight: 600;
+        }
+
+        .return-negative {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        /* ============== 交易紀錄表格 ============== */
+        .trade-buy {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .trade-sell {
+            color: #198754;
+            font-weight: 600;
+        }
+
+        /* ============== 圖表容器 ============== */
+        .chart-container {
+            position: relative;
+            min-height: 350px;
+        }
+
+        .chart-container-sm {
+            position: relative;
+            min-height: 280px;
+        }
+
+        /* ============== 按鈕狀態 ============== */
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
+
+        /* ============== 動畫效果 ============== */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        /* ============== 響應式調整 ============== */
+        @media (max-width: 768px) {
+            .navbar-brand {
+                font-size: 1.1rem;
+            }
+
+            .card-body {
+                padding: 1rem;
+            }
+
+            .quick-add-btn {
+                font-size: 0.8rem;
+                padding: 0.25rem 0.75rem;
+            }
+
+            .metric-card {
+                padding: 0.75rem 0.5rem;
+            }
+
+            .metric-card h4 {
+                font-size: 1.1rem;
+            }
+
+            .chart-container {
+                min-height: 250px;
+            }
+        }
+
+        /* ============== 印刷樣式 ============== */
+        @media print {
+            .navbar,
+            .btn,
+            #parameters,
+            .loading-overlay {
+                display: none !important;
+            }
+
+            #results {
+                display: block !important;
+            }
+
+            .card {
+                box-shadow: none !important;
+                border: 1px solid #dee2e6;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 導航列 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="bi bi-graph-up-arrow me-2"></i>BackTester
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house me-1"></i>首頁
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">
+                            <i class="bi bi-activity me-1"></i>MA 策略
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要內容 -->
+    <main class="container py-4">
+        <!-- 1. 說明區 -->
+        <section id="intro" class="mb-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <h1 class="display-5 fw-bold text-primary mb-3">
+                        <i class="bi bi-activity me-2"></i>MA 黃金交叉策略回測
+                    </h1>
+                    <p class="lead text-muted mb-4">
+                        利用移動平均線交叉訊號進行買賣，回測黃金交叉與死亡交叉策略的歷史績效
+                    </p>
+                    <div class="row justify-content-center">
+                        <div class="col-md-10">
+                            <div class="d-flex flex-wrap justify-content-center gap-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                    <span>SMA / EMA 兩種均線</span>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                    <span>自訂短期與長期週期</span>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                    <span>完整交易紀錄與績效分析</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 參數設定區 -->
+        <section id="parameters" class="mb-5">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-sliders me-2"></i>策略參數設定
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="backtest-form">
+                        <!-- 股票選擇 -->
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-6">
+                                <label for="stock-symbol" class="form-label">股票代碼</label>
+                                <input type="text" class="form-control form-control-lg" id="stock-symbol"
+                                       placeholder="輸入股票代碼（如：2330.TW、AAPL）" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">快速選擇：</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-outline-secondary quick-add-btn" data-symbol="2330.TW">
+                                        台積電
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary quick-add-btn" data-symbol="0050.TW">
+                                        0050
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary quick-add-btn" data-symbol="QQQ">
+                                        QQQ
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary quick-add-btn" data-symbol="AAPL">
+                                        AAPL
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row g-4">
+                            <!-- MA 類型 -->
+                            <div class="col-md-4">
+                                <label for="ma-type" class="form-label">MA 類型</label>
+                                <select class="form-select" id="ma-type" required>
+                                    <option value="SMA">SMA（簡單移動平均）</option>
+                                    <option value="EMA">EMA（指數移動平均）</option>
+                                </select>
+                            </div>
+
+                            <!-- 短期 MA -->
+                            <div class="col-md-4">
+                                <label for="short-period" class="form-label">
+                                    短期 MA 週期
+                                    <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip"
+                                       title="短期均線天數，常用值：5、10、20"></i>
+                                </label>
+                                <input type="number" class="form-control" id="short-period"
+                                       min="2" max="50" value="5" required>
+                            </div>
+
+                            <!-- 長期 MA -->
+                            <div class="col-md-4">
+                                <label for="long-period" class="form-label">
+                                    長期 MA 週期
+                                    <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip"
+                                       title="長期均線天數，常用值：20、60、120"></i>
+                                </label>
+                                <input type="number" class="form-control" id="long-period"
+                                       min="10" max="200" value="20" required>
+                            </div>
+
+                            <!-- 初始資金 -->
+                            <div class="col-md-4">
+                                <label for="initial-capital" class="form-label">初始資金</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="initial-capital"
+                                           min="10000" step="10000" value="1000000" required>
+                                </div>
+                            </div>
+
+                            <!-- 日期範圍 -->
+                            <div class="col-md-4">
+                                <label for="start-date" class="form-label">起始日期</label>
+                                <input type="date" class="form-control" id="start-date" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="end-date" class="form-label">結束日期</label>
+                                <input type="date" class="form-control" id="end-date" required>
+                            </div>
+
+                            <!-- 執行按鈕 -->
+                            <div class="col-12">
+                                <hr class="my-4">
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button type="button" class="btn btn-outline-secondary" id="reset-btn">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>重設
+                                    </button>
+                                    <button type="submit" class="btn btn-primary btn-lg px-5" id="run-backtest-btn">
+                                        <i class="bi bi-play-fill me-1"></i>開始回測
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading 狀態 -->
+        <div id="loading-overlay" class="loading-overlay" style="display: none;">
+            <div class="text-center">
+                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted">正在執行 MA 策略回測，請稍候...</p>
+            </div>
+        </div>
+
+        <!-- 3. 結果顯示區 -->
+        <section id="results" class="mb-5" style="display: none;">
+            <!-- 績效指標卡片 -->
+            <div class="row g-3 mb-4" id="metrics-cards">
+                <div class="col-md-2 col-6">
+                    <div class="card bg-light border-0 metric-card">
+                        <h6 class="text-muted mb-2">總報酬率</h6>
+                        <h4 id="metric-total-return">-</h4>
+                    </div>
+                </div>
+                <div class="col-md-2 col-6">
+                    <div class="card bg-light border-0 metric-card">
+                        <h6 class="text-muted mb-2">年化報酬率</h6>
+                        <h4 id="metric-cagr">-</h4>
+                    </div>
+                </div>
+                <div class="col-md-2 col-6">
+                    <div class="card bg-light border-0 metric-card">
+                        <h6 class="text-muted mb-2">最大回撤</h6>
+                        <h4 id="metric-max-drawdown">-</h4>
+                    </div>
+                </div>
+                <div class="col-md-2 col-6">
+                    <div class="card bg-light border-0 metric-card">
+                        <h6 class="text-muted mb-2">夏普比率</h6>
+                        <h4 id="metric-sharpe">-</h4>
+                    </div>
+                </div>
+                <div class="col-md-2 col-6">
+                    <div class="card bg-light border-0 metric-card">
+                        <h6 class="text-muted mb-2">勝率</h6>
+                        <h4 id="metric-win-rate">-</h4>
+                    </div>
+                </div>
+                <div class="col-md-2 col-6">
+                    <div class="card bg-light border-0 metric-card">
+                        <h6 class="text-muted mb-2">交易次數</h6>
+                        <h4 id="metric-trade-count">-</h4>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 圖表 1：價格 + MA + 交叉點 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-graph-up me-2"></i>價格走勢與 MA 交叉訊號
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="price-ma-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 圖表 2：資產價值走勢 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-wallet2 me-2"></i>資產價值走勢
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container-sm">
+                        <canvas id="portfolio-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 交易紀錄表格 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="bi bi-list-ul me-2"></i>交易紀錄
+                    </h6>
+                    <span class="badge bg-primary" id="trade-count-badge">0 筆交易</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="trades-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>日期</th>
+                                    <th>類型</th>
+                                    <th class="text-end">價格</th>
+                                    <th class="text-end">數量</th>
+                                    <th class="text-end">金額</th>
+                                    <th class="text-end">損益</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trades-tbody">
+                                <!-- 動態填入 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light py-4 mt-5">
+        <div class="container text-center">
+            <p class="text-muted mb-1">
+                <i class="bi bi-info-circle me-1"></i>
+                回測結果僅供參考，不構成投資建議。過去績效不代表未來表現。
+            </p>
+            <p class="text-muted small mb-0">
+                BackTester &copy; 2025 | 資料來源：Yahoo Finance
+            </p>
+        </div>
+    </footer>
+
+    <!-- Error Modal -->
+    <div class="modal fade" id="error-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle me-2"></i>錯誤
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="error-message"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Chart.js Date Adapter -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <script>
+    $(document).ready(function() {
+        // ============== 常數 ==============
+        const API_BASE = 'http://localhost:8000/api';
+
+        // 圖表顏色
+        const COLORS = {
+            price: '#333333',
+            shortMA: '#0d6efd',
+            longMA: '#dc3545',
+            goldenCross: '#198754',
+            deathCross: '#dc3545',
+            portfolio: '#0d6efd',
+            portfolioFill: 'rgba(13, 110, 253, 0.1)'
+        };
+
+        // 圖表實例
+        let priceMAChart = null;
+        let portfolioChart = null;
+
+        // ============== 初始化 ==============
+        initDates();
+        initTooltips();
+
+        function initDates() {
+            const end = new Date();
+            const start = new Date();
+            start.setFullYear(start.getFullYear() - 3);
+            $('#start-date').val(formatDate(start));
+            $('#end-date').val(formatDate(end));
+        }
+
+        function initTooltips() {
+            $('[data-bs-toggle="tooltip"]').each(function() {
+                new bootstrap.Tooltip(this);
+            });
+        }
+
+        function formatDate(date) {
+            return date.toISOString().split('T')[0];
+        }
+
+        // ============== 快速選擇按鈕 ==============
+        $('.quick-add-btn').on('click', function() {
+            const symbol = $(this).data('symbol');
+            $('#stock-symbol').val(symbol);
+            $('.quick-add-btn').removeClass('active');
+            $(this).addClass('active');
+        });
+
+        // 輸入框變化時取消快速按鈕高亮
+        $('#stock-symbol').on('input', function() {
+            const val = $(this).val().toUpperCase();
+            $('.quick-add-btn').each(function() {
+                if ($(this).data('symbol') === val) {
+                    $(this).addClass('active');
+                } else {
+                    $(this).removeClass('active');
+                }
+            });
+        });
+
+        // ============== 重設按鈕 ==============
+        $('#reset-btn').on('click', function() {
+            $('#stock-symbol').val('');
+            $('#ma-type').val('SMA');
+            $('#short-period').val(5);
+            $('#long-period').val(20);
+            $('#initial-capital').val(1000000);
+            initDates();
+            $('.quick-add-btn').removeClass('active');
+            $('#results').hide();
+        });
+
+        // ============== 表單驗證 ==============
+        function validateForm() {
+            const shortPeriod = parseInt($('#short-period').val());
+            const longPeriod = parseInt($('#long-period').val());
+            const startDate = $('#start-date').val();
+            const endDate = $('#end-date').val();
+            const symbol = $('#stock-symbol').val().trim();
+
+            if (!symbol) {
+                showError('請輸入股票代碼');
+                return false;
+            }
+
+            if (shortPeriod >= longPeriod) {
+                showError('短期 MA 週期必須小於長期 MA 週期');
+                return false;
+            }
+
+            if (startDate >= endDate) {
+                showError('起始日期必須早於結束日期');
+                return false;
+            }
+
+            return true;
+        }
+
+        // ============== 表單提交 ==============
+        $('#backtest-form').on('submit', async function(e) {
+            e.preventDefault();
+
+            if (!validateForm()) return;
+
+            const params = {
+                symbol: $('#stock-symbol').val().trim().toUpperCase(),
+                start_date: $('#start-date').val(),
+                end_date: $('#end-date').val(),
+                short_period: parseInt($('#short-period').val()),
+                long_period: parseInt($('#long-period').val()),
+                initial_capital: parseFloat($('#initial-capital').val()),
+                ma_type: $('#ma-type').val()
+            };
+
+            showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/ma-backtest`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params)
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => null);
+                    const msg = errData && errData.detail ? errData.detail : `回測失敗 (HTTP ${response.status})`;
+                    throw new Error(msg);
+                }
+
+                const data = await response.json();
+                displayResults(data, params);
+            } catch (error) {
+                if (error.message === 'Failed to fetch') {
+                    showError('無法連線到伺服器，請確認後端服務是否已啟動');
+                } else {
+                    showError(error.message);
+                }
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // ============== 顯示結果 ==============
+        function displayResults(data, params) {
+            const metrics = data.metrics;
+            const trades = data.trades || [];
+            const priceData = data.price_data || [];
+            const portfolioData = data.portfolio_history || [];
+
+            // 更新績效指標卡片
+            updateMetric('#metric-total-return', metrics.total_return, '%', true);
+            updateMetric('#metric-cagr', metrics.cagr, '%', true);
+            updateMetric('#metric-max-drawdown', metrics.max_drawdown, '%', false);
+            $('#metric-sharpe').text(metrics.sharpe_ratio != null ? metrics.sharpe_ratio.toFixed(2) : '-');
+            updateMetric('#metric-win-rate', metrics.win_rate, '%', false);
+            $('#metric-trade-count').text(metrics.trade_count != null ? metrics.trade_count : '-');
+
+            // 繪製圖表
+            drawPriceMAChart(priceData, trades, params);
+            drawPortfolioChart(portfolioData);
+
+            // 填入交易紀錄
+            fillTradesTable(trades);
+
+            // 顯示結果區
+            $('#results').addClass('fade-in').show();
+
+            // 捲動到結果區
+            $('html, body').animate({
+                scrollTop: $('#results').offset().top - 80
+            }, 500);
+        }
+
+        function updateMetric(selector, value, suffix, colorBySign) {
+            const el = $(selector);
+            if (value == null) {
+                el.text('-').removeClass('return-positive return-negative');
+                return;
+            }
+            const formatted = value.toFixed(2) + suffix;
+            el.text(formatted);
+
+            if (colorBySign) {
+                el.removeClass('return-positive return-negative');
+                if (value > 0) el.addClass('return-positive');
+                else if (value < 0) el.addClass('return-negative');
+            } else if (selector === '#metric-max-drawdown') {
+                el.addClass('return-negative');
+            }
+        }
+
+        // ============== 價格 + MA 圖表 ==============
+        function drawPriceMAChart(priceData, trades, params) {
+            if (priceMAChart) {
+                priceMAChart.destroy();
+            }
+
+            const ctx = document.getElementById('price-ma-chart').getContext('2d');
+
+            // 準備資料集
+            const dates = priceData.map(d => d.date);
+            const closePrices = priceData.map(d => d.close);
+            const shortMA = priceData.map(d => d.short_ma);
+            const longMA = priceData.map(d => d.long_ma);
+
+            // 交叉點資料
+            const goldenCrossPoints = [];
+            const deathCrossPoints = [];
+
+            trades.forEach(t => {
+                const point = { x: t.date, y: t.price };
+                if (t.type === 'buy') {
+                    goldenCrossPoints.push(point);
+                } else if (t.type === 'sell') {
+                    deathCrossPoints.push(point);
+                }
+            });
+
+            const shortLabel = `${params.ma_type} ${params.short_period}`;
+            const longLabel = `${params.ma_type} ${params.long_period}`;
+
+            priceMAChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: '收盤價',
+                            data: closePrices,
+                            borderColor: COLORS.price,
+                            backgroundColor: 'rgba(51, 51, 51, 0.05)',
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            pointHitRadius: 4,
+                            fill: false,
+                            order: 3
+                        },
+                        {
+                            label: shortLabel,
+                            data: shortMA,
+                            borderColor: COLORS.shortMA,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHitRadius: 4,
+                            fill: false,
+                            order: 2
+                        },
+                        {
+                            label: longLabel,
+                            data: longMA,
+                            borderColor: COLORS.longMA,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHitRadius: 4,
+                            fill: false,
+                            order: 1
+                        },
+                        {
+                            label: '黃金交叉（買入）',
+                            data: goldenCrossPoints,
+                            type: 'scatter',
+                            pointStyle: 'triangle',
+                            pointRadius: 10,
+                            pointBackgroundColor: COLORS.goldenCross,
+                            pointBorderColor: COLORS.goldenCross,
+                            showLine: false,
+                            order: 0
+                        },
+                        {
+                            label: '死亡交叉（賣出）',
+                            data: deathCrossPoints,
+                            type: 'scatter',
+                            pointStyle: 'triangle',
+                            pointRadius: 10,
+                            rotation: 180,
+                            pointBackgroundColor: COLORS.deathCross,
+                            pointBorderColor: COLORS.deathCross,
+                            showLine: false,
+                            order: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = context.parsed.y;
+                                    if (value != null) {
+                                        return label + ': $' + value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'month',
+                                displayFormats: {
+                                    month: 'yyyy/MM'
+                                }
+                            },
+                            ticks: {
+                                maxTicksLimit: 12
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ============== 資產價值走勢圖 ==============
+        function drawPortfolioChart(portfolioData) {
+            if (portfolioChart) {
+                portfolioChart.destroy();
+            }
+
+            const ctx = document.getElementById('portfolio-chart').getContext('2d');
+
+            const dates = portfolioData.map(d => d.date);
+            const values = portfolioData.map(d => d.value);
+
+            portfolioChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: '資產價值',
+                        data: values,
+                        borderColor: COLORS.portfolio,
+                        backgroundColor: COLORS.portfolioFill,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHitRadius: 4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return '資產價值: $' + context.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'month',
+                                displayFormats: {
+                                    month: 'yyyy/MM'
+                                }
+                            },
+                            ticks: {
+                                maxTicksLimit: 12
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ============== 交易紀錄表格 ==============
+        function fillTradesTable(trades) {
+            const tbody = $('#trades-tbody');
+            tbody.empty();
+
+            if (!trades || trades.length === 0) {
+                tbody.append('<tr><td colspan="6" class="text-center text-muted">無交易紀錄</td></tr>');
+                $('#trade-count-badge').text('0 筆交易');
+                return;
+            }
+
+            $('#trade-count-badge').text(trades.length + ' 筆交易');
+
+            trades.forEach(function(trade) {
+                const isBuy = trade.type === 'buy';
+                const typeClass = isBuy ? 'trade-buy' : 'trade-sell';
+                const typeLabel = isBuy ? '買入' : '賣出';
+                const amount = trade.price * trade.shares;
+
+                let plCell = '-';
+                if (!isBuy && trade.profit != null) {
+                    const plClass = trade.profit >= 0 ? 'return-positive' : 'return-negative';
+                    const plSign = trade.profit >= 0 ? '+' : '';
+                    plCell = `<span class="${plClass}">${plSign}$${trade.profit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>`;
+                }
+
+                tbody.append(`
+                    <tr>
+                        <td>${trade.date}</td>
+                        <td><span class="${typeClass}">${typeLabel}</span></td>
+                        <td class="text-end">$${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td class="text-end">${trade.shares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                        <td class="text-end">$${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                        <td class="text-end">${plCell}</td>
+                    </tr>
+                `);
+            });
+        }
+
+        // ============== UI 工具函式 ==============
+        function showLoading() {
+            $('#loading-overlay').fadeIn(200);
+        }
+
+        function hideLoading() {
+            $('#loading-overlay').fadeOut(200);
+        }
+
+        function showError(message) {
+            $('#error-message').text(message);
+            new bootstrap.Modal($('#error-modal')[0]).show();
+        }
+    });
+    </script>
+</body>
+</html>
