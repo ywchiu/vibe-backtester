@@ -494,16 +494,31 @@ data/
 DeepSeek 走方案 F（Claude Code 指向 OpenRouter 的 deepseek-v4-flash/pro）。成本為實際帳單
 （DeepSeek/Codex 用官方 token 定價換算）。**六個模型在兩種條件下都拿到 74/74，差別只在成本。**
 
-| 實作者 | 單幹 all-in | Opus規劃→實作（實作花費） | 誰便宜 |
-| --- | --: | --: | --- |
-| **DeepSeek V4 Flash** | **$0.079** | $0.027（+計畫$0.61） | **單幹（全場最省）** |
-| DeepSeek V4 Pro | $0.209 | $0.162 | 單幹 |
-| Haiku 4.5 | $0.218 | $0.194 | 單幹 |
-| Sonnet 5 | $0.457 | $0.385 | 單幹 |
-| Opus 4.8 | $0.559 | $0.497 | 單幹 |
-| Codex gpt-5.5 | $1.388 | $0.732 | **F（唯一）** |
+單幹（solo）三維度：
 
-（Opus mastermind 規劃一次 $0.61、92s，計畫共用。）
+| 實作者 | 時間 | token | 成本 |
+| --- | --: | --: | --: |
+| **DeepSeek V4 Flash** | 143s | 888k | **$0.079** |
+| DeepSeek V4 Pro | 166s | 529k | $0.209 |
+| Haiku 4.5 | 134s | 1.01M | $0.218 |
+| Sonnet 5 | 98s | 550k | $0.457 |
+| Opus 4.8 | 101s | 396k | $0.559 |
+| Codex gpt-5.5 | 221s | 942k | $1.388 |
+
+Opus 規劃→實作（實作階段三維度；另加一次性計畫 92s / 230k / $0.61，可攤提）：
+
+| 實作者 | 時間 | token | 成本 |
+| --- | --: | --: | --: |
+| **DeepSeek V4 Flash** | 51s | 305k | **$0.027** |
+| DeepSeek V4 Pro | 106s | 422k | $0.162 |
+| Haiku 4.5 | 109s | 960k | $0.194 |
+| Sonnet 5 | 69s | 661k | $0.385 |
+| Opus 4.8 | 63s | 339k | $0.497 |
+| Codex gpt-5.5 | 137s | 294k | $0.732 |
+
+三個維度各自的贏家：**最省錢** DeepSeek Flash（$0.079）、**最快** Opus/Sonnet（~100s）、
+**最少 token** Opus（396k）。計畫幾乎都讓每個模型更快、多數更省 token（Flash 888k→305k、
+Codex 942k→294k），但 Sonnet token 反升、Haiku 幾乎持平 → **計畫不保證每個模型都省 token。**
 
 課程真正的結論：
 

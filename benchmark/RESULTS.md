@@ -157,18 +157,37 @@ DeepSeek 走 Course 原本的方案 F 作法：Claude Code 指向 OpenRouter，
 DeepSeek 的 USD 用 OpenRouter 真實定價自算（Claude Code 回報的 total_cost_usd 對
 OpenRouter 模型不準，已忽略）。Flash $0.09/$0.18/M、Pro $0.435/$0.87/M。
 
-## 完整矩陣（全部 74/74；由便宜到貴排）
+## 完整矩陣（全部 74/74）—— turns / 時間 / token / 成本 全壓進來
 
-| 模型（實作者） | 單幹 turns/時間/成本 | Opus規劃→實作 turns/時間/成本 |
-| --- | --- | --- |
-| **DeepSeek V4 Flash** | 42 · 143s · **$0.0786** | 19 · 51s · **$0.0274** |
-| **DeepSeek V4 Pro** | 34 · 166s · **$0.2091** | 28 · 106s · **$0.1623** |
-| Haiku 4.5 | 34 · 134s · **$0.2181** | 26 · 109s · **$0.1936** |
-| Sonnet 5 | 19 · 98s · **$0.4569** | 18 · 69s · **$0.3852** |
-| Opus 4.8 | 18 · 101s · **$0.5585** | 14 · 63s · **$0.4965** |
-| Codex gpt-5.5 | ~ · 221s · **$1.3877** | ~ · 137s · **$0.7316** |
+| 實作者 | 條件 | turns | 時間(s) | 總token | 輸出token | 成本 |
+| --- | --- | --: | --: | --: | --: | --: |
+| **DeepSeek Flash** | solo | 42 | 142.7 | 887,622 | 14,753 | **$0.0786** |
+| **DeepSeek Flash** | fplan | 19 | 50.9 | 304,697 | 5,054 | **$0.0274** |
+| DeepSeek Pro | solo | 34 | 165.9 | 529,120 | 9,083 | $0.2091 |
+| DeepSeek Pro | fplan | 28 | 106.3 | 422,102 | 6,142 | $0.1623 |
+| Haiku 4.5 | solo | 34 | 134.1 | 1,011,054 | 10,933 | $0.2181 |
+| Haiku 4.5 | fplan | 26 | 108.8 | 959,509 | 10,756 | $0.1936 |
+| Sonnet 5 | solo | 19 | 97.5 | 550,299 | 8,409 | $0.4569 |
+| Sonnet 5 | fplan | 18 | 68.7 | 660,819 | 5,061 | $0.3852 |
+| Opus 4.8 | solo | 18 | 100.9 | 396,350 | 6,023 | $0.5585 |
+| Opus 4.8 | fplan | 14 | 63.2 | 339,095 | 4,888 | $0.4965 |
+| Codex gpt-5.5 | solo | ~ | 221.0 | 941,959 | 10,677 | $1.3877 |
+| Codex gpt-5.5 | fplan | ~ | 137.0 | 293,889 | 6,312 | $0.7316 |
+| **mastermind(Opus)** | plan | 15 | 91.7 | 230,164 | 7,111 | $0.6100 |
 
-mastermind 規劃（Opus，一次、共用）：15 turns / 92s / **$0.6100**。
+> 總token = 輸入(含 cache)＋輸出。DeepSeek/Codex 成本用官方 token 定價換算，
+> 已忽略 Claude Code 對 OpenRouter 模型不準的 total_cost_usd。
+
+**三個維度各自的贏家（單幹）：**
+- **最省錢**：DeepSeek Flash $0.079。
+- **最快**：Opus 100.9s / Sonnet 97.5s（DeepSeek Flash 143s、Codex 221s 最慢）。
+- **最少 token**：Opus 396k（Haiku 用最多 1.01M，但單價低所以仍便宜）。
+
+**Opus 計畫對三維度的影響（fplan vs solo）：**
+- 幾乎都更快：Flash 143→51s、Opus 101→63s、Codex 221→137s。
+- token 多數下降：Flash 888k→305k、Codex 942k→294k、Opus 396k→339k；
+  但 Sonnet 反而上升(550k→661k)、Haiku 幾乎持平 → 計畫不保證每個模型都省 token。
+- turns 多數下降（Flash 42→19、Opus 18→14），Haiku/Sonnet 變動小。
 
 ## all-in 成本（單一交付物；fplan 含 $0.61 計畫）
 
