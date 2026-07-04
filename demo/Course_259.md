@@ -472,3 +472,27 @@ data/
 | 分工模式（F） | 96 | 88 | 85 | 中低 | 中 | 中低 | 最划算 |
 
 這張表就是整堂課的結論：**把任務拆對，讓不同模型做不同工作，比單選一個「最便宜」或「最強」的模型都划算。**
+
+## 9.1 首次實測（2026-07-04，本 repo 的 benchmark）
+
+用本 repo 的 `benchmark/`（Level 1–3）實際跑一輪，每個模型在隔離資料夾 `runs/<model>/`
+作答，看不到 `_grader/` 與 hidden 測試，完成後用 `grade.sh` 跑 public + hidden 評分：
+
+| 方案 | L1 (22) | L2 (27) | L3 public (11) | L3 hidden (14) | 總分 /74 | 結論 |
+| --- | --: | --: | --: | --: | --: | --- |
+| Opus 4.8 | 22 | 27 | 11 | 14 | **74** | 全過（含 hidden） |
+| Sonnet 5 | 22 | 27 | 11 | 14 | **74** | 全過（含 hidden） |
+| Codex gpt-5.5 | 22 | 27 | 11 | 14 | **74** | 全過；~115k tokens |
+| Haiku 4.5 | 22 | 27 | 5 | 0 | **54** | L1/L2 全過，L3 未修 |
+
+實測印證了難度分層：
+
+- **Level 1、2 沒有鑑別度** —— 四個模型全部 100%（含 hidden）。指標計算與規格明確的
+  回測器，便宜/快模型也能穩穩寫對 → 這種活交便宜模型即可。
+- **Level 3（修 bug repo）才拉開差距** —— 要讀 repo、找 5 個根因、跨檔案修改。
+  Opus / Sonnet / Codex 乾淨修好且過 hidden；Haiku 把 L1/L2 寫對，卻沒真正進到
+  L3 除錯。這正是「agent 型除錯是高階模型／Codex 勝出處」。
+- **無過擬合** —— 三個滿分方案連 hidden（不同資料＋邊界＋look-ahead 不變量）都全過。
+
+> 重跑：`./benchmark/new_run.sh <model>` 建乾淨資料夾 → 讓該模型作答 →
+> `./benchmark/grade.sh <model>` 評分。完整紀錄見 `benchmark/RESULTS.md`。
