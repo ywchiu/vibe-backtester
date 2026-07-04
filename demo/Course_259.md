@@ -483,16 +483,17 @@ data/
 | Opus 4.8 | 22 | 27 | 11 | 14 | **74** | 全過（含 hidden） |
 | Sonnet 5 | 22 | 27 | 11 | 14 | **74** | 全過（含 hidden） |
 | Codex gpt-5.5 | 22 | 27 | 11 | 14 | **74** | 全過；~115k tokens |
-| Haiku 4.5 | 22 | 27 | 5 | 0 | **54** | L1/L2 全過，L3 未修 |
+| Haiku 4.5 | 22 | 27 | 11 | 14 | **74** | 全過，但 L3 需最多輪次 |
 
 實測印證了難度分層：
 
 - **Level 1、2 沒有鑑別度** —— 四個模型全部 100%（含 hidden）。指標計算與規格明確的
   回測器，便宜/快模型也能穩穩寫對 → 這種活交便宜模型即可。
-- **Level 3（修 bug repo）才拉開差距** —— 要讀 repo、找 5 個根因、跨檔案修改。
-  Opus / Sonnet / Codex 乾淨修好且過 hidden；Haiku 把 L1/L2 寫對，卻沒真正進到
-  L3 除錯。這正是「agent 型除錯是高階模型／Codex 勝出處」。
-- **無過擬合** —— 三個滿分方案連 hidden（不同資料＋邊界＋look-ahead 不變量）都全過。
+- **Level 3（修 bug repo）差在效率不是能不能** —— 四個最終都修好 5 個 bug 並過 hidden，
+  但便宜/快模型在跨檔案除錯上要花更多輪次與時間才收斂。Opus / Sonnet / Codex 一兩輪
+  就完成 L3；Haiku 的 L1/L2 很快，L3 明顯較慢。**所以成本效率分數（時間 × 輪次）
+  才是重點，不是單看有沒有過。**
+- **無過擬合** —— 四個滿分方案連 hidden（不同資料＋邊界＋look-ahead 不變量）都全過。
 
 > 重跑：`./benchmark/new_run.sh <model>` 建乾淨資料夾 → 讓該模型作答 →
 > `./benchmark/grade.sh <model>` 評分。完整紀錄見 `benchmark/RESULTS.md`。
