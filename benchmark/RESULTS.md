@@ -182,7 +182,7 @@ OpenRouter 模型不準，已忽略）。Flash $0.09/$0.18/M、Pro $0.435/$0.87/
 > 每個 cell 的 public+hidden 評分原始輸出存於 `benchmark/runs/grades.txt`（可稽核，全部 74/74）。
 
 **三個維度各自的贏家（單幹）：**
-- **最省錢**：DeepSeek Flash $0.079。
+- **最省錢**：DeepSeek Flash $0.080。
 - **最快**：Opus 100.9s / Sonnet 97.5s（DeepSeek Flash 143s、Codex 221s 最慢）。
 - **最少 token**：Opus 396k（Haiku 用最多 1.01M，但單價低所以仍便宜）。
 
