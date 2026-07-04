@@ -20,8 +20,9 @@ def codex_row(n):
 
 def ds_row(n,P):
     d=j(n); u=d["usage"]
+    # Anthropic 語意：input_tokens 已是未快取；cache_read/creation 為另外分開的桶，不可再減。
     inp=u["input_tokens"]; cr=u.get("cache_read_input_tokens",0); cc=u.get("cache_creation_input_tokens",0); out=u["output_tokens"]
-    cost=(inp-cr-cc)*P["inp"]+(cr+cc)*P["cache"]+out*P["out"]
+    cost=inp*P["inp"]+(cr+cc)*P["cache"]+out*P["out"]
     return d["num_turns"], d["duration_ms"]/1000, inp+cc+cr, out, inp+cc+cr+out, cost
 
 rows=[

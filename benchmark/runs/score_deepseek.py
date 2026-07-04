@@ -23,8 +23,8 @@ def cost(name, kind):
     inp=u.get("input_tokens",0); cr=u.get("cache_read_input_tokens",0)
     cc=u.get("cache_creation_input_tokens",0); out=u.get("output_tokens",0)
     p=PRICE[kind]
-    uncached=inp-cr-cc
-    c=uncached*p["inp"] + (cr+cc)*p["cache"] + out*p["out"]
+    # Anthropic 語意：input_tokens 已是未快取，不可再減 cache。
+    c=inp*p["inp"] + (cr+cc)*p["cache"] + out*p["out"]
     return d.get("num_turns"), d.get("duration_ms",0)/1000, c, inp, out
 
 cells=[("c-dsflash-solo","flash","solo"),("c-dsflash-fplan","flash","fplan"),

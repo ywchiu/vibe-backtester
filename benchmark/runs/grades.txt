@@ -1,0 +1,108 @@
+############ 評分：c-dsflash-solo ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.28s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
+############ 評分：c-dsflash-fplan ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.11s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
+############ 評分：c-dspro-solo ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.11s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
+############ 評分：c-dspro-fplan ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.11s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
+############ 評分：c-haiku-solo ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.11s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
+############ 評分：c-haiku-fplan ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.11s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
+############ 評分：c-sonnet-solo ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.11s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
+############ 評分：c-sonnet-fplan ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.12s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
+############ 評分：c-opus-solo ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.11s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
+############ 評分：c-opus-fplan ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.11s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
+############ 評分：c-codex-solo ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.12s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
+############ 評分：c-codex-fplan ############
+==== Level 1 (public + hidden) ====
+22 passed in 0.11s
+==== Level 2 (public + hidden) ====
+27 passed in 0.13s
+==== Level 3 (public) ====
+11 passed in 0.11s
+==== Level 3 (hidden) ====
+14 passed in 0.12s
