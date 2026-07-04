@@ -485,15 +485,38 @@ data/
 | Codex gpt-5.5 | 22 | 27 | 11 | 14 | **74** | 全過；~115k tokens |
 | Haiku 4.5 | 22 | 27 | 11 | 14 | **74** | 全過，但 L3 需最多輪次 |
 
-實測印證了難度分層：
+四個都滿分。但這是第一輪、環境未隔離乾淨；後續做了嚴謹版（見下）。
 
-- **Level 1、2 沒有鑑別度** —— 四個模型全部 100%（含 hidden）。指標計算與規格明確的
-  回測器，便宜/快模型也能穩穩寫對 → 這種活交便宜模型即可。
-- **Level 3（修 bug repo）差在效率不是能不能** —— 四個最終都修好 5 個 bug 並過 hidden，
-  但便宜/快模型在跨檔案除錯上要花更多輪次與時間才收斂。Opus / Sonnet / Codex 一兩輪
-  就完成 L3；Haiku 的 L1/L2 很快，L3 明顯較慢。**所以成本效率分數（時間 × 輪次）
-  才是重點，不是單看有沒有過。**
-- **無過擬合** —— 四個滿分方案連 hidden（不同資料＋邊界＋look-ahead 不變量）都全過。
+## 9.2 乾淨隔離版：solo vs Opus規劃，含 DeepSeek（全部 74/74）
 
-> 重跑：`./benchmark/new_run.sh <model>` 建乾淨資料夾 → 讓該模型作答 →
-> `./benchmark/grade.sh <model>` 評分。完整紀錄見 `benchmark/RESULTS.md`。
+隔離做法：workspace 建在 repo 外、`claude -p --setting-sources ""` 停用所有 skills/hooks
+（避免 harness 的 skill 把便宜模型帶偏）、每 run 全新 process、hidden 測試評分。
+DeepSeek 走方案 F（Claude Code 指向 OpenRouter 的 deepseek-v4-flash/pro）。成本為實際帳單
+（DeepSeek/Codex 用官方 token 定價換算）。**六個模型在兩種條件下都拿到 74/74，差別只在成本。**
+
+| 實作者 | 單幹 all-in | Opus規劃→實作（實作花費） | 誰便宜 |
+| --- | --: | --: | --- |
+| **DeepSeek V4 Flash** | **$0.079** | $0.027（+計畫$0.61） | **單幹（全場最省）** |
+| DeepSeek V4 Pro | $0.209 | $0.162 | 單幹 |
+| Haiku 4.5 | $0.218 | $0.194 | 單幹 |
+| Sonnet 5 | $0.457 | $0.385 | 單幹 |
+| Opus 4.8 | $0.559 | $0.497 | 單幹 |
+| Codex gpt-5.5 | $1.388 | $0.732 | **F（唯一）** |
+
+（Opus mastermind 規劃一次 $0.61、92s，計畫共用。）
+
+課程真正的結論：
+
+- **規格明確時，最省 = 最便宜模型單幹**：DeepSeek V4 Flash 單幹 **$0.079 拿滿分**，
+  比 Opus 便宜約 7 倍、比 Codex 便宜約 18 倍。
+- **Opus 計畫讓每個實作者都更快更省（per-run）**：DeepSeek Flash 從 $0.079→$0.027、
+  143s→51s。但單一交付物加上 $0.61 計畫多半不划算。
+- **方案 F 的甜蜜點是「攤提」與「難題」**：一份 Opus 計畫餵給 DeepSeek Flash 做很多支任務，
+  每支只要 ~$0.03，量大時就趨近 DeepSeek 的價、又有 Opus 等級的規劃品質；或任務模糊到
+  便宜模型單幹會失敗時，計畫才從「浪費」變「必要」。
+- **Codex 是唯一「先規劃反而更省」**：它單幹暴衝探索（94萬 token），計畫幫它省最多。
+- **提醒**：本 benchmark 的 README 把公式都寫死了，天生偏向單幹有利；真實模糊需求會把
+  優勢拉回「先規劃再實作」。跟客戶報告時要講清楚，否則數字會被誤讀。
+
+> 重跑：`benchmark/runs/` 下的 `clean_run.sh`（Claude）、`drive_deepseek.sh`（DeepSeek）、
+> `score_matrix.py` / `score_deepseek.py`。完整紀錄見 `benchmark/RESULTS.md`。

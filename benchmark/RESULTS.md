@@ -147,6 +147,51 @@ all-in 成本（plan + implement）比單幹貴：
 > （94萬 token / 221s），計畫把它壓到 29萬 token / 137s，省下的比 $0.61 計畫還多。
 > 「探索成本越高的模型，越值得先給計畫」——這是給客戶的一條實用準則。
 
+---
+
+# 第四輪：加入 DeepSeek（完整 6 模型矩陣，2026-07-04）
+
+DeepSeek 走 Course 原本的方案 F 作法：Claude Code 指向 OpenRouter，
+`ANTHROPIC_DEFAULT_*_MODEL=deepseek/deepseek-v4-flash|pro`，`claude --model sonnet`。
+隔離同前（workspace 在 repo 外、`--setting-sources ""`、fresh process）。
+DeepSeek 的 USD 用 OpenRouter 真實定價自算（Claude Code 回報的 total_cost_usd 對
+OpenRouter 模型不準，已忽略）。Flash $0.09/$0.18/M、Pro $0.435/$0.87/M。
+
+## 完整矩陣（全部 74/74；由便宜到貴排）
+
+| 模型（實作者） | 單幹 turns/時間/成本 | Opus規劃→實作 turns/時間/成本 |
+| --- | --- | --- |
+| **DeepSeek V4 Flash** | 42 · 143s · **$0.0786** | 19 · 51s · **$0.0274** |
+| **DeepSeek V4 Pro** | 34 · 166s · **$0.2091** | 28 · 106s · **$0.1623** |
+| Haiku 4.5 | 34 · 134s · **$0.2181** | 26 · 109s · **$0.1936** |
+| Sonnet 5 | 19 · 98s · **$0.4569** | 18 · 69s · **$0.3852** |
+| Opus 4.8 | 18 · 101s · **$0.5585** | 14 · 63s · **$0.4965** |
+| Codex gpt-5.5 | ~ · 221s · **$1.3877** | ~ · 137s · **$0.7316** |
+
+mastermind 規劃（Opus，一次、共用）：15 turns / 92s / **$0.6100**。
+
+## all-in 成本（單一交付物；fplan 含 $0.61 計畫）
+
+| 模型 | 單幹 | Opus規劃 all-in | 誰便宜 |
+| --- | --: | --: | --- |
+| **DeepSeek V4 Flash** | **$0.0786** | $0.6374 | **單幹（全場最省）** |
+| DeepSeek V4 Pro | $0.2091 | $0.7723 | 單幹 |
+| Haiku 4.5 | $0.2181 | $0.8036 | 單幹 |
+| Sonnet 5 | $0.4569 | $0.9952 | 單幹 |
+| Opus 4.8 | $0.5585 | $1.1065 | 單幹 |
+| Codex gpt-5.5 | $1.3877 | $1.3416 | F（唯一例外）|
+
+## 最終結論（含 DeepSeek）
+
+- **規格明確時，全場最省 = DeepSeek V4 Flash 單幹：$0.079 拿滿分 74/74。**
+  比 Haiku($0.22)再便宜約 2.8 倍，比 Opus 便宜約 7 倍，比 Codex 便宜約 18 倍。
+- **Opus 計畫仍讓每個實作者更快更省（per-run）**：DeepSeek Flash 實作從 $0.079→$0.027、
+  143s→51s、42→19 turns。但單一交付物加上 $0.61 計畫就不划算（Codex 除外）。
+- **方案 F 的真正甜蜜點 = 攤提**：一份 $0.61 的 Opus 計畫，如果餵給 DeepSeek Flash
+  連做很多支任務，每支實作只要 ~$0.03 → 量大時平均成本趨近 DeepSeek 的價，
+  又拿到 Opus 等級的規劃品質。這才是課程要賣的「貴模型規劃、便宜模型實作」。
+- Codex 例外仍成立：它單幹暴衝（94萬 token），計畫幫它省最多。
+
 ## 結論（誠實版，給客戶）
 
 - **規格夠明確時，最省 = 直接用最便宜模型單幹**：Haiku 單幹 **$0.22 拿滿分**，
