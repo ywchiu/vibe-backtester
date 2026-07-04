@@ -56,3 +56,6 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+# Benchmark isolated experiment runs (not part of the baseline)
+benchmark/runs/
