@@ -246,3 +246,34 @@ Codex 也確認：Codex solo $1.3877 與拆解（48/29/23%）**正確**、reason
 
 > 這一輪本身就是課程賣點的示範：**便宜模型（DeepSeek）做實作、貴模型/Codex 做審查**，
 > Codex 花 ~$0.5 等值就抓出一個我漏掉的計價 bug。審查真的有價值。
+
+---
+
+# 第六輪：獨立性檢查（回應「subagent 污染 / 球員兼裁判」）
+
+**Q：其他 Claude 模型是 subagent 嗎？會不會污染或球員兼裁判？**
+
+1. **不是 subagent。** 矩陣裡的每個 cell 都是獨立的 headless 進程（`claude -p --setting-sources ""`
+   / `codex exec` / `claude -p`→OpenRouter），拿不到主 session 的 context。早期用 Agent-tool
+   subagent 的那兩輪已作廢、不列入矩陣。
+2. **評分不是 LLM 判的**，是確定性 `pytest` + hidden 差異測試（`grades.txt` 可稽核）。
+   沒有 Claude 判 Claude。
+3. **設計層（規格/參考解答）由 Opus 撰寫 = 潛在利益衝突。** 用兩個方式關掉：
+   - **Codex（gpt-5.5）獨立審查成本分析** → 抓到我一個 cache 計價 bug（見第五輪）。
+   - **跨 oracle 一致性測試**（`xoracle_run.py`）：在 benchmark **從沒看過的隨機資料**上，
+     拿 3 個**非 Claude** 選手的解答當 alternate oracle，和我的參考解答逐點比對。
+
+   結果（Level 1/2/3 全部）：
+
+   | alternate oracle | 與 MY-REF 最大絕對差 | NaN 位置 |
+   | --- | --- | --- |
+   | Codex gpt-5.5 | **0.00e+00** | 一致 |
+   | DeepSeek Pro | **0.00e+00** | 一致 |
+   | DeepSeek Flash | **0.00e+00** | 一致 |
+
+   **三個非 Claude 實作在未見資料上與我的參考逐位元相同** → 參考解答不是「Claude 的詮釋」，
+   而是任何正確實作都會收斂到的唯一答案；規格無歧義；hidden 測試的公平性等同於一個
+   已被交叉驗證的 oracle。「球員兼裁判」在設計層以數據關閉。
+
+殘留、誠實揭露：mastermind 計畫仍由 Opus 寫（fplan 時 Opus-實作拿到同源計畫，理論上略有利，
+實測不明顯）；README 公式寫死 → 偏向單幹有利。這兩點屬「設計偏好」，不影響上面的正確性結論。
