@@ -5,8 +5,9 @@
 # 用法：./grade.sh <name>
 set -uo pipefail
 cd "$(dirname "$0")"
-name="${1:?usage: grade.sh <name>}"
-run="runs/$name"
+name="${1:?usage: grade.sh <name> [solution_src_dir]}"
+# 解答來源：預設 runs/<name>，也可傳絕對路徑（例如 scratchpad 的隔離 workspace）。
+run="${2:-runs/$name}"
 PY="$(pwd)/.venv/bin/python"
 
 G="$(mktemp -d)"
