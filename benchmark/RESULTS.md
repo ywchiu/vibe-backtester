@@ -327,3 +327,37 @@ Codex 也確認：Codex solo $1.3877 與拆解（48/29/23%）**正確**、reason
 **更正**：矩陣裡 DeepSeek Flash solo 的 **$0.080 是單次高抽樣**；n=3 平均其實只有 **$0.041**
 （range $0.032–0.050，因 DeepSeek 每次 cache 命中差異大）。Flash 比先前報的更便宜。
 所有單次成本都應讀作「點估計 ± 誤差」，但跨層結論不受影響。
+
+---
+
+# 第八輪：無-cache 正規化（移除 cache 污染的公平比較）
+
+多輪比較裡，cache 命中率由「怎麼接入模型」決定（Claude 原生 ~100%、DeepSeek 走
+OpenRouter 第三方 ~0%），會污染成本比較。乾淨作法：**全部用「無 cache」單價**
+——所有輸入 token（含被快取的）都以全價計，output 照 output 價，同一把尺。
+
+單價（每 1M，無 cache）：Opus $5/$25、Sonnet 5 $3/$15、Haiku 4.5 $1/$5、
+Codex gpt-5.5 $5/$30、DeepSeek 官方 Flash $0.14/$0.28、Pro $0.435/$0.87。
+
+## solo，無-cache 正規化成本（由便宜到貴）
+
+| 模型 | 總輸入tok | 輸出tok | 無cache成本 |
+| --- | --: | --: | --: |
+| **DeepSeek Flash** | 872,869 | 14,753 | **$0.126** |
+| **DeepSeek Pro** | 520,037 | 9,083 | **$0.234** |
+| Haiku 4.5 | 1,000,121 | 10,933 | **$1.055** |
+| Sonnet 5 | 541,890 | 8,409 | **$1.752** |
+| Opus 4.8 | 390,327 | 6,023 | **$2.102** |
+| Codex gpt-5.5 | 931,282 | 10,677 | **$4.977** |
+
+## 結論
+
+- **Cache 之前嚴重扭曲比較**：as-run 時 Haiku 只要 $0.22（~100% cache 命中）；
+  無 cache 是 **$1.06，貴 ~5×**。Claude 的「便宜」很大部分是 cache 折扣。
+- **乾淨的兩層結構**：DeepSeek（$0.13–0.23）≪ 其他全部（$1–5）。DeepSeek Flash
+  比 Haiku 便宜 ~8×、比 Opus ~17×、比 Codex ~40×（無 cache 公平定價）。
+- **兩種視角都有效，回答不同問題**：
+  - **無 cache = 公平的模型對模型比較**（移除「哪個接入路徑比較會 cache」的污染）→ 比模型用這個。
+  - **as-run（含各自實際 cache）= 實際帳單** → 編預算用這個。
+- 誠實揭露：無 cache 是假設最壞情況；真實多輪 agentic run 常 cache 命中高（Claude ~100%），
+  所以無 cache 會**高估** Claude 真實成本，而 DeepSeek 走第三方常不 cache，as-run ≈ 無 cache。
