@@ -167,6 +167,9 @@ EOF
 > 想改用其他實作者，只要換第一個參數即可：例如原生 Opus 用 `claude -p "..." --model opus`，
 > 或 DeepSeek Pro 用 `claude-openrouter deepseek/deepseek-v4-pro -p "..."`。
 
+> 想比照 benchmark 實驗的「乾淨裸模型」跑法，再加上 `--setting-sources ""`（停用 CLAUDE.md /
+> skills / hooks，避免 harness 帶偏行為）。這裡不加，模型就會吃到你本地的 CLAUDE.md 與 skills。
+
 ## 2.3 驗證：跑三關的 public + hidden tests
 
 三關的 public tests 一次跑：
@@ -183,6 +186,12 @@ bash benchmark/grade.sh demo
 
 `grade.sh <name>` 會把你在 `benchmark/` 就地改好的解答，覆蓋到一份含 `_grader` 隱藏測試的
 乾淨評分樹再跑，輸出每關 public＋hidden 的 pass 數（`<name>` 只是這次評分的標籤，隨便取）。
+
+因為 2.2 是**就地**改 `benchmark/` 底下的檔案，評完想還原成原始題目：
+
+```bash
+git checkout benchmark/level1 benchmark/level2 benchmark/level3
+```
 
 測試失敗時，不要繼續加功能，回頭叫模型只做最小修正：先說明是哪一關、失敗原因，
 再改程式，最後重跑該關的 pytest。
