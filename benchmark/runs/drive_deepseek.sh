@@ -21,7 +21,7 @@ rsync -a --exclude _grader --exclude __pycache__ --exclude test_hidden.py --excl
   --exclude PLAN.md \
   "$BENCH/level1" "$BENCH/level2" "$BENCH/level3" "$BENCH/data" "$ws/"
 if [ "$cond" = "fplan" ]; then
-  cp "$BENCH/runs/PLAN.md" "$ws/PLAN.md"
+  cp "${BT_PLAN:-$BENCH/runs/PLAN.md}" "$ws/PLAN.md"
   TASK="Follow the implementation plan in PLAN.md to complete all three levels in this folder."
 else
   TASK="Read level1/README.md, level2/README.md, level3/README.md and plan your own approach."

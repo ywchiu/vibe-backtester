@@ -169,23 +169,14 @@ benchmark/.venv/bin/python -m pytest benchmark/level1/tests -q
 git checkout benchmark/level1
 ```
 
-## 2.4 收尾範例：把派工 SOP 包成 skill
+## 2.4 把 SOP 包成 skill
 
-2.2–2.3 的整套流程（組 prompt、背景派工、不信自我回報、親自重跑測試、成本記帳）每次都要人肉貼指令。最後一步是把這套 know-how 固化成 **skill**，之後只要口語說「把 X 派給 DeepSeek 跑」，Opus 就會自己照 SOP 走完全程。
+整套流程（組 prompt、背景派工、不信自我回報、親自重跑測試、成本記帳）每次都要人肉貼指令。最後一步是把這套 know-how 固化成 **skill**，之後只要口語說「把 X 派給 DeepSeek 跑」，Opus 就會自己照 SOP 走完全程。
 
-skill 已放在 repo 裡，隨專案發給學員：
+skill 已放在 repo 裡，：
 
 ```text
 .claude/skills/openrouter-dispatch/SKILL.md
 ```
 
-**bin command vs skill 的分工**：`claude-openrouter` 是「工具本身」（終端機直接可跑、確定性）；skill 是「怎麼用這個工具的 know-how」（觸發詞、prompt 三要素模板、絕對路徑、模型選擇 flash/pro、驗證 SOP、何時才升級到 `drive_deepseek.sh` 的隔離模式）。skill 包在 bin 外面，兩者缺一不可。
-
-skill 本身是用 TDD 流程寫出來的（superpowers 的 writing-skills）：
-
-1. **RED**：先派一個「沒有 skill」的 subagent 做同樣的派工任務——它翻到 `drive_deepseek.sh` 就照抄整套 benchmark 隔離裝置（rsync workspace、回寫、metrics），還沿用了別的 session 的過期 scratchpad 路徑。
-2. **GREEN**：針對這些實際失敗寫 skill，再跑一次同情境——這次一行 `claude-openrouter` 派工、絕對路徑、親自重跑 pytest，全部到位。
-3. 沒有新漏洞，不需 REFACTOR。
-
-> 一個安全細節：skill 是**每個 session 自動載入的持久設定**，所以裡面刻意**不**把 `--dangerously-skip-permissions` 寫成預設（預設 `--permission-mode acceptEdits`，跳過權限必須由使用者明確要求）。第一版把 skip 旗標烤進去時，Claude Code 的權限分類器直接拒寫——「把不安全預設塞進持久設定」本身就是該被擋的事，這也是給學員的示範。
 
