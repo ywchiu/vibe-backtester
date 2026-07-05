@@ -1,0 +1,535 @@
+<style>
+  :root{
+    --paper:#ffffff;
+    --ink:#12161c;            /* slightly blue-black, chosen not defaulted */
+    --muted:#5c6773;
+    --faint:#8b95a1;
+    --hair:#e7eaef;
+    --hair-2:#f1f3f6;
+    --blue:#1f5f8b;           /* blueprint blue — primary accent */
+    --blue-soft:#dbe8f1;
+    --green:#1c8a56;          /* the single "cheapest / savings" pop */
+    --green-soft:#d9f0e3;
+    --amber:#9a6b12;
+    --code-bg:#f6f8fa;
+    --slab: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+    color-scheme: light;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    overflow:hidden;
+  }
+
+  /* ---------- deck shell ---------- */
+  .deck{position:fixed; inset:0}
+  .slide{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:clamp(28px,5.2vw,92px);
+    opacity:0; visibility:hidden;
+    transform:translateY(14px);
+    transition:opacity .5s ease, transform .5s ease, visibility .5s;
+  }
+  .slide.active{opacity:1; visibility:visible; transform:none}
+  .wrap{width:100%; max-width:1080px; margin:0 auto}
+
+  /* ---------- shared type ---------- */
+  .eyebrow{
+    font-family:var(--slab); font-size:clamp(11px,1.15vw,13px);
+    letter-spacing:.22em; text-transform:uppercase; color:var(--blue);
+    display:flex; align-items:center; gap:12px; margin:0 0 20px;
+  }
+  .eyebrow::before{content:""; width:26px; height:2px; background:var(--blue); display:inline-block}
+  h1{font-size:clamp(34px,6.2vw,74px); line-height:1.02; letter-spacing:-.02em; font-weight:800; margin:0; text-wrap:balance}
+  h2{font-size:clamp(26px,4vw,46px); line-height:1.06; letter-spacing:-.015em; font-weight:800; margin:0 0 6px; text-wrap:balance}
+  .lede{font-size:clamp(16px,1.9vw,22px); line-height:1.5; color:var(--muted); max-width:44ch; margin:18px 0 0; text-wrap:pretty}
+  .mono{font-family:var(--slab)}
+  .tnum{font-variant-numeric:tabular-nums}
+
+  /* ---------- cover ---------- */
+  .cover h1{max-width:16ch}
+  .cover .sub{font-size:clamp(17px,2.1vw,25px); color:var(--muted); margin-top:22px; max-width:40ch; line-height:1.45}
+  .cover .sub b{color:var(--ink); font-weight:700}
+  .meta{
+    margin-top:44px; display:flex; flex-wrap:wrap; gap:10px 26px;
+    font-family:var(--slab); font-size:13px; color:var(--faint); letter-spacing:.02em;
+  }
+  .meta span{display:inline-flex; align-items:center; gap:8px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block}
+
+  /* ---------- method slide ---------- */
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:34px}
+  .card{border:1px solid var(--hair); border-radius:14px; padding:22px; background:#fff}
+  .card .k{font-family:var(--slab); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--blue); margin:0 0 12px}
+  .card p{margin:0; font-size:15px; line-height:1.55; color:var(--ink)}
+  .card p + p{margin-top:9px; color:var(--muted); font-size:13.5px}
+  .flowrow{display:flex; align-items:stretch; gap:12px; margin-top:30px; flex-wrap:wrap}
+  .pill{
+    flex:1 1 200px; border:1px solid var(--hair); border-radius:12px; padding:16px 18px; background:#fff;
+    display:flex; flex-direction:column; gap:4px; min-width:0;
+  }
+  .pill.plan{border-color:var(--blue); background:linear-gradient(0deg,#fff,#f8fbfd)}
+  .pill.impl{border-color:var(--green); background:linear-gradient(0deg,#fff,#f7fcf9)}
+  .pill .role{font-family:var(--slab); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+  .pill .who{font-weight:750; font-size:17px}
+  .pill .role.b{color:var(--blue)} .pill .role.g{color:var(--green)}
+  .arrow{align-self:center; font-family:var(--slab); color:var(--faint); font-size:22px; padding:0 2px}
+  .facts{display:flex; gap:26px 40px; flex-wrap:wrap; margin-top:30px; font-family:var(--slab); font-size:14px; color:var(--muted)}
+  .facts b{color:var(--ink); font-weight:700; font-size:16px}
+
+  /* ---------- tasks slide ---------- */
+  .tasks{display:flex; flex-direction:column; margin-top:30px}
+  .trow{display:grid; grid-template-columns:176px 1fr; gap:clamp(16px,3vw,40px); align-items:start;
+        padding:20px 0; border-top:1px solid var(--hair)}
+  .trow .lv{font-family:var(--slab)}
+  .trow .lv .n{font-size:13.5px; font-weight:700; color:var(--blue); letter-spacing:.02em}
+  .trow .lv .cnt{display:inline-block; margin-top:9px; font-size:11.5px; color:var(--muted);
+                 background:var(--code-bg); border:1px solid var(--hair); border-radius:999px; padding:3px 11px}
+  .trow h3{margin:0 0 7px; font-size:clamp(17px,2vw,21px); font-weight:750; letter-spacing:-.01em}
+  .trow p{margin:0; font-size:clamp(14px,1.55vw,16px); line-height:1.55; color:var(--muted); max-width:64ch}
+  .trow.hot .lv .n{color:var(--green)}
+  .trow.hot h3 .tag{font-family:var(--slab); font-size:11.5px; color:var(--green); font-weight:700; margin-left:10px;
+                    background:var(--green-soft); border-radius:6px; padding:2px 9px; letter-spacing:.02em; white-space:nowrap}
+  .taskfoot{margin-top:22px; font-family:var(--slab); font-size:12.5px; color:var(--faint); line-height:1.65}
+  .taskfoot b{color:var(--muted); font-weight:600}
+  @media (max-width:640px){ .trow{grid-template-columns:1fr; gap:8px} }
+
+  /* ---------- scenario slides ---------- */
+  .scn{display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(24px,4vw,64px); align-items:center}
+  .scn .num{font-family:var(--slab); font-size:13.5px; letter-spacing:.03em; color:var(--faint)}
+  .cost{font-family:var(--slab); font-weight:700; letter-spacing:-.02em; line-height:1; margin:14px 0 2px;
+        font-size:clamp(56px,11vw,132px); font-variant-numeric:tabular-nums}
+  .cost .cur{font-size:.5em; vertical-align:.12em; color:var(--muted); margin-right:.05em}
+  .cost.win{color:var(--green)}
+  .costlabel{font-family:var(--slab); font-size:14px; color:var(--muted); letter-spacing:.02em}
+  .score{display:inline-flex; align-items:center; gap:9px; margin-top:26px;
+          font-family:var(--slab); font-size:15px; font-weight:700; color:var(--green);
+          background:var(--green-soft); border-radius:999px; padding:8px 16px}
+  .score svg{width:16px;height:16px}
+  .takeaway{margin-top:26px; font-size:clamp(16px,1.9vw,21px); line-height:1.5; max-width:34ch; color:var(--ink)}
+  .takeaway b{color:var(--blue)} .takeaway .g{color:var(--green); font-weight:700}
+
+  /* stacked cost bar (shared scale across slides) */
+  .barwrap{display:flex; flex-direction:column; gap:16px}
+  .barrow{display:flex; flex-direction:column; gap:9px}
+  .barrow .cap{display:flex; justify-content:space-between; align-items:baseline;
+               font-family:var(--slab); font-size:12.5px; color:var(--muted); letter-spacing:.02em}
+  .barrow .cap .amt{color:var(--ink); font-weight:700}
+  .track{height:30px; border-radius:8px; background:var(--hair-2); overflow:hidden; display:flex}
+  .seg{height:100%; width:0; transition:width .9s cubic-bezier(.2,.7,.2,1)}
+  .active .seg{transition-delay:.15s}
+  .seg.plan{background:repeating-linear-gradient(135deg,var(--blue),var(--blue) 7px,#2a6f9e 7px,#2a6f9e 14px)}
+  .seg.impl{background:var(--faint)}
+  .seg.impl.win{background:var(--green)}
+  .legend{display:flex; gap:20px; font-family:var(--slab); font-size:12px; color:var(--muted); margin-top:2px}
+  .legend i{width:22px;height:10px;border-radius:3px;display:inline-block;margin-right:7px;vertical-align:middle}
+  .legend i.plan{background:repeating-linear-gradient(135deg,var(--blue),var(--blue) 5px,#2a6f9e 5px,#2a6f9e 10px)}
+  .legend i.impl{background:var(--faint)}
+  .legend span{display:inline-flex;align-items:center}
+
+  /* ---------- summary slide ---------- */
+  .sumgrid{display:grid; grid-template-columns:1.15fr .85fr; gap:clamp(28px,4vw,60px); align-items:center; margin-top:28px}
+  .sbars{display:flex; flex-direction:column; gap:22px}
+  .sbar .cap{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;
+             font-family:var(--slab); font-size:13.5px; color:var(--muted)}
+  .sbar .cap b{color:var(--ink)}
+  .sbar .cap .tot{font-weight:700; font-size:18px}
+  .sbar .cap .tot.win{color:var(--green)}
+  .drop{font-family:var(--slab); font-size:12px; color:var(--green); margin-left:10px}
+  .klist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:18px}
+  .klist li{display:flex; gap:14px; align-items:flex-start}
+  .klist .idx{font-family:var(--slab); font-size:12px; color:var(--blue); font-weight:700; margin-top:3px; letter-spacing:.05em}
+  .klist p{margin:0; font-size:16px; line-height:1.5}
+  .klist p b{font-weight:700}
+  .klist p .g{color:var(--green); font-weight:700}
+  .foot{margin-top:30px; font-family:var(--slab); font-size:12px; color:var(--faint); line-height:1.6; border-top:1px solid var(--hair); padding-top:16px; max-width:70ch}
+
+  /* ---------- data table slide ---------- */
+  .tablewrap{overflow-x:auto; margin-top:26px}
+  .dtable{width:100%; min-width:640px; border-collapse:collapse; font-family:var(--slab)}
+  .dtable th{font-weight:600; color:var(--muted); font-size:11.5px; letter-spacing:.04em;
+             padding:0 0 11px; border-bottom:1.5px solid var(--hair); text-align:right; white-space:nowrap}
+  .dtable th:first-child{text-align:left}
+  .dtable td{padding:8px 0; border-bottom:1px solid var(--hair-2); text-align:right;
+             font-variant-numeric:tabular-nums; font-size:clamp(12.5px,1.35vw,15px); color:var(--ink); white-space:nowrap}
+  .dtable td:first-child{text-align:left; font-family:var(--sans); font-weight:600; padding-right:18px}
+  .dtable th:not(:first-child), .dtable td:not(:first-child){padding-left:22px}
+  .dtable .sec td{padding:18px 0 8px; border-bottom:1.5px solid var(--hair);
+                  color:var(--blue); font-family:var(--sans); font-weight:700; font-size:12.5px; letter-spacing:.03em; text-align:left}
+  .dtable .cost{font-weight:700}
+  .dtable tr.win td{color:var(--green)}
+  .dtable tr.dim td{color:var(--faint)}
+  .dtable td.mdl-note{font-family:var(--slab); font-weight:400; color:var(--faint); font-size:11px}
+  .tnote{margin-top:20px; font-family:var(--slab); font-size:12px; line-height:1.65; color:var(--faint);
+         border-top:1px solid var(--hair); padding-top:14px; max-width:78ch}
+  .tnote b{color:var(--muted); font-weight:600}
+
+  /* ---------- chrome ---------- */
+  .chrome{position:fixed; left:0; right:0; bottom:0; height:0; z-index:20}
+  .rail{position:fixed; left:clamp(28px,5.2vw,92px); bottom:26px; display:flex; align-items:center; gap:14px; z-index:20}
+  .dots{display:flex; gap:9px}
+  .dots button{width:8px;height:8px;border-radius:50%;border:0;padding:0;background:var(--hair);cursor:pointer;transition:background .3s, transform .3s}
+  .dots button.on{background:var(--blue); transform:scale(1.35)}
+  .dots button:focus-visible{outline:2px solid var(--blue); outline-offset:3px}
+  .counter{font-family:var(--slab); font-size:12px; color:var(--faint); letter-spacing:.06em}
+  .nav{position:fixed; right:clamp(28px,5.2vw,92px); bottom:22px; display:flex; gap:10px; z-index:20}
+  .nav button{
+    width:42px;height:42px;border-radius:10px;border:1px solid var(--hair);background:#fff;color:var(--ink);
+    font-size:18px;cursor:pointer;display:grid;place-items:center;transition:border-color .2s, background .2s}
+  .nav button:hover{border-color:var(--blue); background:#f8fbfd}
+  .nav button:focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+  .brand{position:fixed; right:clamp(28px,5.2vw,92px); top:26px; font-family:var(--slab); font-size:12px; color:var(--faint); letter-spacing:.1em; z-index:20}
+  .progress{position:fixed; top:0; left:0; height:3px; background:var(--blue); width:0; transition:width .5s ease; z-index:30}
+
+  @media (max-width:820px){
+    .scn,.sumgrid{grid-template-columns:1fr; gap:26px}
+    .grid3{grid-template-columns:1fr}
+    .brand{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .slide,.seg{transition:none}
+  }
+</style>
+
+<div class="progress" id="progress"></div>
+<div class="brand">程式開發&nbsp;·&nbsp;成本實驗</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 · COVER -->
+  <section class="slide cover" data-slide>
+    <div class="wrap">
+      <p class="eyebrow">AI 寫程式 · 成本實驗</p>
+      <h1>讓貴的模型負責規劃，<br>讓便宜的模型負責實作。</h1>
+      <p class="sub">面對同一批程式任務，不論換哪個模型來實作，最後都拿到滿分 <b>74 分</b>。差別只在於：改用便宜的模型來寫程式，整體的花費就少了 <b>六成</b>。</p>
+      <div class="meta">
+        <span><span class="dot"></span>一組可以自動評分的量化回測任務，三關合計 74 個測試</span>
+        <span>做法：先規劃，再實作</span>
+        <span>2026 年 7 月實測</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · METHOD -->
+  <section class="slide" data-slide>
+    <div class="wrap">
+      <p class="eyebrow">01 · 實驗方法</p>
+      <h2>要怎麼比，才算公平</h2>
+      <p class="lede">我們準備了一組可以自動評分的量化回測程式任務，讓每個模型在彼此隔離、看不到答案的環境裡作答，最後由程式判定對錯，而不是交給另一個 AI 來主觀評分。</p>
+
+      <div class="grid3">
+        <div class="card">
+          <p class="k">任務：三關，共 74 個測試</p>
+          <p>由淺到深：第一關計算技術指標，第二關做一個回測器，第三關要修好一個藏有錯誤的程式。</p>
+          <p>每一關都同時用公開測試和隱藏測試來驗收，資料固定、可以重現。</p>
+        </div>
+        <div class="card">
+          <p class="k">隔離：避免作弊或干擾</p>
+          <p>每個模型都在全新、乾淨的環境裡作答，工作資料夾放在專案之外。</p>
+          <p>它們看不到參考答案，我們也關掉所有可能影響行為的外掛功能。</p>
+        </div>
+        <div class="card">
+          <p class="k">評分：完全由程式判定</p>
+          <p>對錯是由測試程式決定的，不是由另一個 AI 說了算。</p>
+          <p>我們還讓三個非 Claude 的模型各自獨立實作，結果在沒看過的資料上與參考答案完全一致，代表這份答案沒有偏袒任何一方。</p>
+        </div>
+      </div>
+
+      <div class="flowrow">
+        <div class="pill plan">
+          <span class="role b">第一步 · 規劃</span>
+          <span class="who">由一個模型把做法想清楚，寫成一份計畫</span>
+        </div>
+        <span class="arrow">→</span>
+        <div class="pill impl">
+          <span class="role g">第二步 · 實作</span>
+          <span class="who">另一個模型照著計畫，把程式寫出來並跑測試</span>
+        </div>
+      </div>
+      <div class="facts">
+        <span>整套做法就是<b>先規劃、再實作</b>：貴的模型負責想清楚，便宜的模型負責動手做。</span>
+        <span>所有花費，都是用實際用量乘以官方定價算出來的。</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2b · TASKS -->
+  <section class="slide" data-slide>
+    <div class="wrap">
+      <p class="eyebrow">02 · 三道題目</p>
+      <h2>要模型解的，是這三題</h2>
+      <div class="tasks">
+        <div class="trow">
+          <div class="lv"><span class="n">第一關 · 技術指標</span><br><span class="cnt">22 個測試</span></div>
+          <div>
+            <h3>把最基本的計算寫對</h3>
+            <p>寫出投資分析最常用的幾個小函式——移動平均、每日報酬、累積報酬、最大回撤。給一份固定的股價資料，算出來的每個數字都要正確。這關考的是能不能照規格把函式寫對、會不會處理缺漏的資料。</p>
+          </div>
+        </div>
+        <div class="trow">
+          <div class="lv"><span class="n">第二關 · 回測器</span><br><span class="cnt">27 個測試</span></div>
+          <div>
+            <h3>組出一個小型回測引擎</h3>
+            <p>讀進股價和買賣訊號，模擬持倉、扣掉交易成本，最後算出報酬率、波動率、夏普比率、最大回撤、勝率等指標。這關考的是把很多環節接起來的工程能力，還會特別檢查程式有沒有「偷看未來」而作弊。</p>
+          </div>
+        </div>
+        <div class="trow hot">
+          <div class="lv"><span class="n">第三關 · 修好有錯的程式</span><br><span class="cnt">25 個測試</span></div>
+          <div>
+            <h3>找出並修好埋好的 5 個 bug<span class="tag">最難 · 差距最大</span></h3>
+            <p>給一個能做多也能做空的回測程式，裡面故意藏了 5 個錯：交易成本沒扣、訊號差一格、做空算反、回撤公式寫錯、缺漏資料沒處理。要讀懂整份程式、找出問題並修好，讓測試全過，而且不准改測試。這關最能看出模型會不會除錯、能不能跨檔案修改。</p>
+          </div>
+        </div>
+      </div>
+      <p class="taskfoot"><b>三關由淺到深，合計 74 個測試（22 ＋ 27 ＋ 25）。</b>每一關都有可以自己先跑的公開測試；交件後再用看不到的隱藏測試驗收，避免模型「背答案」。</p>
+    </div>
+  </section>
+
+  <!-- 3 · SCENARIO A -->
+  <section class="slide" data-slide data-anim="barsA">
+    <div class="wrap">
+      <p class="eyebrow">03 · 場景 A</p>
+      <div class="scn">
+        <div>
+          <p class="num">全程都用 Fable 5</p>
+          <div class="cost tnum"><span class="cur">$</span><span data-count="4.14" data-dp="2">0.00</span></div>
+          <p class="costlabel">其中規劃花了 $1.55，實作花了 $2.59</p>
+          <span class="score"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>三關全部通過（74 / 74）</span>
+          <p class="takeaway">這是最貴的基準線：規劃和實作都交給最頂級的 <b>Fable 5</b>。品質確實是滿分，但每一個字都用最高的單價在算。</p>
+        </div>
+        <div class="barwrap">
+          <div class="barrow" data-bar>
+            <div class="cap"><span>全程都用 Fable 5</span><span class="amt tnum">$4.14</span></div>
+            <div class="track"><div class="seg plan" data-w="37.5"></div><div class="seg impl" data-w="62.5"></div></div>
+          </div>
+          <div class="legend">
+            <span><i class="plan"></i>規劃（Fable）</span>
+            <span><i class="impl"></i>實作</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · SCENARIO B -->
+  <section class="slide" data-slide data-anim="barsB">
+    <div class="wrap">
+      <p class="eyebrow">04 · 場景 B</p>
+      <div class="scn">
+        <div>
+          <p class="num">Fable 5 規劃，改由 Opus 4.8 實作</p>
+          <div class="cost tnum"><span class="cur">$</span><span data-count="3.28" data-dp="2">0.00</span></div>
+          <p class="costlabel">規劃一樣是 $1.55，實作降到了 $1.73</p>
+          <span class="score"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>三關全部通過（74 / 74）</span>
+          <p class="takeaway">計畫仍然由 Fable 5 來寫，只把實作換成 <b>Opus</b>。整體省下了 $0.86，而且分數一分都沒有少。</p>
+        </div>
+        <div class="barwrap">
+          <div class="barrow" data-bar>
+            <div class="cap"><span>全程都用 Fable 5</span><span class="amt tnum">$4.14</span></div>
+            <div class="track"><div class="seg plan" data-w="37.5"></div><div class="seg impl" data-w="62.5"></div></div>
+          </div>
+          <div class="barrow" data-bar>
+            <div class="cap"><span><b style="color:var(--ink)">Fable 5 規劃 ＋ Opus 實作</b></span><span class="amt tnum">$3.28</span></div>
+            <div class="track"><div class="seg plan" data-w="37.5"></div><div class="seg impl" data-w="41.7"></div></div>
+          </div>
+          <div class="legend">
+            <span><i class="plan"></i>規劃（Fable）</span>
+            <span><i class="impl"></i>實作</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · SCENARIO C -->
+  <section class="slide" data-slide data-anim="barsC">
+    <div class="wrap">
+      <p class="eyebrow">05 · 場景 C</p>
+      <div class="scn">
+        <div>
+          <p class="num">Fable 5 規劃，改由 DeepSeek Flash 實作</p>
+          <div class="cost win tnum"><span class="cur">$</span><span data-count="1.61" data-dp="2">0.00</span></div>
+          <p class="costlabel">規劃一樣是 $1.55，實作只要 <b style="color:var(--green)">$0.06</b></p>
+          <span class="score"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>三關全部通過（74 / 74）</span>
+          <p class="takeaway">把實作換成便宜的 <span class="g">DeepSeek Flash</span>，整體花費省下超過六成。走到這一步，<b>超過 96% 的錢都花在「規劃」上</b>，實作本身幾乎不用花錢。</p>
+        </div>
+        <div class="barwrap">
+          <div class="barrow" data-bar>
+            <div class="cap"><span>全程都用 Fable 5</span><span class="amt tnum">$4.14</span></div>
+            <div class="track"><div class="seg plan" data-w="37.5"></div><div class="seg impl" data-w="62.5"></div></div>
+          </div>
+          <div class="barrow" data-bar>
+            <div class="cap"><span>Fable 5 規劃 ＋ Opus 實作</span><span class="amt tnum">$3.28</span></div>
+            <div class="track"><div class="seg plan" data-w="37.5"></div><div class="seg impl" data-w="41.7"></div></div>
+          </div>
+          <div class="barrow" data-bar>
+            <div class="cap"><span><b style="color:var(--green)">Fable 5 規劃 ＋ DeepSeek Flash 實作</b></span><span class="amt tnum">$1.61</span></div>
+            <div class="track"><div class="seg plan" data-w="37.5"></div><div class="seg impl win" data-w="1.3"></div></div>
+          </div>
+          <div class="legend">
+            <span><i class="plan"></i>規劃（Fable）</span>
+            <span><i class="impl"></i>實作</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · SUMMARY -->
+  <section class="slide" data-slide data-anim="barsS">
+    <div class="wrap">
+      <p class="eyebrow">06 · 總結</p>
+      <h2>同樣是滿分 74 分，花的錢卻少了六成</h2>
+      <div class="sumgrid">
+        <div class="sbars">
+          <div class="sbar" data-bar>
+            <div class="cap"><span>全程都用 Fable 5</span><span><span class="tot tnum">$4.14</span></span></div>
+            <div class="track"><div class="seg plan" data-w="37.5"></div><div class="seg impl" data-w="62.5"></div></div>
+          </div>
+          <div class="sbar" data-bar>
+            <div class="cap"><span>Fable 5 規劃，Opus 實作</span><span><span class="tot tnum">$3.28</span><span class="drop">少 21%</span></span></div>
+            <div class="track"><div class="seg plan" data-w="37.5"></div><div class="seg impl" data-w="41.7"></div></div>
+          </div>
+          <div class="sbar" data-bar>
+            <div class="cap"><span><b style="color:var(--green)">Fable 5 規劃，DeepSeek Flash 實作</b></span><span><span class="tot win tnum">$1.61</span><span class="drop">少 61%</span></span></div>
+            <div class="track"><div class="seg plan" data-w="37.5"></div><div class="seg impl win" data-w="1.3"></div></div>
+          </div>
+          <div class="legend" style="margin-top:6px">
+            <span><i class="plan"></i>規劃（Fable，固定 $1.55）</span>
+            <span><i class="impl"></i>實作</span>
+          </div>
+        </div>
+
+        <ul class="klist">
+          <li><span class="idx">結論一</span><p>不管換哪個模型來實作，<b>品質都一樣好</b>——三種做法都是滿分 74 分。</p></li>
+          <li><span class="idx">結論二</span><p>只是把實作從最貴的模型換成便宜的 <span class="g">DeepSeek Flash</span>，整體花費就<b>少了六成</b>。</p></li>
+          <li><span class="idx">結論三</span><p>當實作變得很便宜以後，主要的花費幾乎都在「規劃」上，所以<b>規劃要交給哪個模型，也一樣要挑對</b>。</p></li>
+        </ul>
+      </div>
+      <p class="foot">全部金額都用「無 cache 全價」計算：每一個輸入字都以全價估算，是最保守、也最能公平比較不同模型的算法。定價採官方每一百萬個字——Fable 5 是 $10（輸入）／ $50（輸出）、Opus 4.8 是 $5／$25、DeepSeek Flash 是 $0.14／$0.28。同一份規劃如果重複用在很多支任務上，平均下來會更划算。三種做法都已經通過公開測試與隱藏測試，全部拿到 74 分。</p>
+    </div>
+  </section>
+
+  <!-- 7 · DATA TABLE -->
+  <section class="slide" data-slide>
+    <div class="wrap">
+      <p class="eyebrow">07 · 完整數據</p>
+      <h2>所有實驗一覽</h2>
+      <p class="lede" style="margin-top:12px">整份投影片的成本都用「無 cache 全價」計算：每一個輸入字都以全價估算，是最保守、也最能公平比較不同模型的算法。所有實驗都通過了 74 個測試。</p>
+      <div class="tablewrap">
+        <table class="dtable">
+          <thead>
+            <tr>
+              <th>模型</th><th>回合</th><th>時間</th><th>輸入 token</th><th>輸出 token</th><th>成本（無 cache）</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="sec"><td colspan="6">規劃階段 —— 一次性，可攤提給很多支任務</td></tr>
+            <tr><td>Fable 5</td><td>11</td><td>91 秒</td><td>121,746</td><td>6,724</td><td class="cost">$1.55</td></tr>
+            <tr><td>Opus 4.8</td><td>15</td><td>92 秒</td><td>223,053</td><td>7,111</td><td class="cost">$1.29</td></tr>
+
+            <tr class="sec"><td colspan="6">實作階段 —— 照 Fable 5 的計畫實作</td></tr>
+            <tr class="win"><td>DeepSeek Flash</td><td>20</td><td>59 秒</td><td>380,762</td><td>5,777</td><td class="cost">$0.06</td></tr>
+            <tr><td>DeepSeek Pro</td><td>40</td><td>161 秒</td><td>837,879</td><td>8,142</td><td class="cost">$0.37</td></tr>
+            <tr><td>Haiku 4.5</td><td>21</td><td>98 秒</td><td>736,308</td><td>8,129</td><td class="cost">$0.78</td></tr>
+            <tr><td>Opus 4.8</td><td>14</td><td>70 秒</td><td>321,180</td><td>4,773</td><td class="cost">$1.73</td></tr>
+            <tr><td>Fable 5</td><td>15</td><td>62 秒</td><td>235,310</td><td>4,695</td><td class="cost">$2.59</td></tr>
+            <tr><td>Sonnet 5</td><td>20</td><td>90 秒</td><td>868,441</td><td>5,553</td><td class="cost">$2.69</td></tr>
+            <tr class="dim"><td>Codex（gpt-5.5）</td><td>~</td><td>210 秒</td><td>1,130,693</td><td>9,645</td><td class="cost">$5.94</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="tnote"><b>怎麼看這張表：</b>DeepSeek Flash 實作只要 $0.06，是最省的；越貴的模型（Fable、Sonnet、Codex）單價高、又用掉較多字，成本就往上跳。<b>定價（每百萬字）：</b>Fable 5 $10/$50、Opus 4.8 $5/$25、Sonnet 5 $3/$15、Haiku 4.5 $1/$5、DeepSeek Flash $0.14/$0.28、Pro $0.435/$0.87、Codex(gpt-5.5) $5/$30。全部以無 cache 全價估算，與前面各頁一致。</p>
+    </div>
+  </section>
+
+</div>
+
+<div class="rail">
+  <div class="dots" id="dots"></div>
+  <span class="counter"><span id="cur">1</span> / <span id="tot">6</span></span>
+</div>
+<div class="nav">
+  <button id="prev" aria-label="上一頁">‹</button>
+  <button id="next" aria-label="下一頁">›</button>
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('[data-slide]'));
+  var n = slides.length, i = 0;
+  var reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+  document.getElementById('tot').textContent = n;
+
+  // dots
+  var dots = document.getElementById('dots');
+  slides.forEach(function(_,k){
+    var b=document.createElement('button'); b.setAttribute('aria-label','第'+(k+1)+'頁');
+    b.addEventListener('click',function(){go(k)}); dots.appendChild(b);
+  });
+  var dotEls = Array.prototype.slice.call(dots.children);
+
+  function countUp(el){
+    var target=parseFloat(el.getAttribute('data-count'));
+    var dp=parseInt(el.getAttribute('data-dp')||'2',10);
+    if(reduce){ el.textContent=target.toFixed(dp); return; }
+    var t0=null, dur=900;
+    function step(ts){ if(!t0)t0=ts; var p=Math.min(1,(ts-t0)/dur);
+      var e=1-Math.pow(1-p,3);
+      el.textContent=(target*e).toFixed(dp);
+      if(p<1) requestAnimationFrame(step); else el.textContent=target.toFixed(dp);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function animate(slide){
+    // bars
+    slide.querySelectorAll('.seg').forEach(function(seg){
+      seg.style.width='0%';
+    });
+    // force reflow then set
+    void slide.offsetWidth;
+    slide.querySelectorAll('.seg').forEach(function(seg){
+      seg.style.width=(seg.getAttribute('data-w'))+'%';
+    });
+    // counters
+    slide.querySelectorAll('[data-count]').forEach(countUp);
+  }
+
+  function go(k){
+    k=Math.max(0,Math.min(n-1,k));
+    if(k===i && slides[i].classList.contains('active')) return;
+    slides[i].classList.remove('active');
+    i=k;
+    var s=slides[i];
+    s.classList.add('active');
+    dotEls.forEach(function(d,j){ d.classList.toggle('on', j===i); });
+    document.getElementById('cur').textContent=i+1;
+    document.getElementById('progress').style.width=((i+1)/n*100)+'%';
+    // trigger animations for this slide
+    requestAnimationFrame(function(){ setTimeout(function(){ animate(s); }, reduce?0:60); });
+  }
+
+  document.getElementById('next').addEventListener('click',function(){go(i+1)});
+  document.getElementById('prev').addEventListener('click',function(){go(i-1)});
+  addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();go(i+1)}
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();go(i-1)}
+    else if(e.key==='Home'){go(0)} else if(e.key==='End'){go(n-1)}
+  });
+  // touch
+  var x0=null;
+  addEventListener('touchstart',function(e){x0=e.touches[0].clientX},{passive:true});
+  addEventListener('touchend',function(e){
+    if(x0===null)return; var dx=e.changedTouches[0].clientX-x0;
+    if(Math.abs(dx)>50){ go(i + (dx<0?1:-1)); } x0=null;
+  },{passive:true});
+
+  go(0);
+})();
+</script>

@@ -1,4 +1,4 @@
-# [Vibe Coding] AI Coding 省錢 Benchmark：用不同模型打造量化回測系統
+# [Vibe Coding] 如何透過混用模型將 Fable 5 的效益發揮最大?!
 
 這堂課不是「AI coding 做網站省錢」，也不是「用 AI 做會賺錢的策略」。
 
@@ -317,6 +317,64 @@ Anthropic base URL: https://openrouter.ai/api
 
 如果沒有看到上面兩行，代表這次還不是走 OpenRouter，先不要進實作。一般 `claude` 不受影響，仍然可以拿來跑原生 Opus。
 
+## 5.6 本次實測實際怎麼跑（headless 自動化版）
+
+上面 5.1–5.5 是「手動、互動式」的示範流程，適合上課現場一步步操作。但這次的完整 benchmark（見 §9）是用 **headless（非互動）** 自動化跑的：把同一組 env 設定包成腳本，讓 6 個模型 × 多種條件可以一鍵重跑、並直接把 token / 時間 / 成本吐成 JSON。三種入口對應三種指令。
+
+**Claude 系列（Opus / Sonnet / Haiku / Fable 5）—— 原生 headless**
+
+```bash
+claude -p "<任務或計畫>" --model opus \
+  --setting-sources "" \
+  --output-format json \
+  --dangerously-skip-permissions
+```
+
+- `--setting-sources ""`：停用 CLAUDE.md / skills / hooks / plugins（但保留登入）。讓每個模型都是「乾淨裸模型」，行為不被 harness 的 skill 帶偏——沒關掉時，便宜模型會被 `writing-plans` skill 帶走、把整段時間拿去寫計畫、一行 code 都沒實作。
+- `--output-format json`：回傳裡有 `num_turns` / `duration_ms` / `total_cost_usd` / `usage`，token、時間、成本一次到位（不必另外算）。
+
+**DeepSeek（透過 OpenRouter）—— 同一個 Claude Code，只把 env 改走 OpenRouter**
+
+```bash
+env \
+  ANTHROPIC_BASE_URL="https://openrouter.ai/api" \
+  ANTHROPIC_AUTH_TOKEN="$OPENROUTER_API_KEY" \
+  ANTHROPIC_API_KEY="" \
+  ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek/deepseek-v4-flash" \
+  claude -p "<任務>" --model sonnet \
+    --setting-sources "" --output-format json --dangerously-skip-permissions
+```
+
+這就是 5.5 那個 `claude-deepseek` 函式的 headless 版——**同一組 env 變數，只是不進互動模式**。金鑰這次放在專案根目錄的 `.env`（變數名是 `OPENROUTER_KEY`），腳本讀出來再設成 `OPENROUTER_API_KEY`。想測 DeepSeek Pro 就把模型名換成 `deepseek/deepseek-v4-pro`。
+
+**Codex（gpt-5.5）—— 直接用 `codex exec` 驅動**
+
+```bash
+codex exec -C <workspace> --sandbox workspace-write --skip-git-repo-check -m gpt-5.5 "<任務>"
+```
+
+（Codex 的 `/codex` rescue subagent 在自動化情境下不穩，會空轉不動手；直接用 `codex exec` 最可靠。）
+
+上面三種入口都包在 `benchmark/runs/` 的腳本裡：`clean_run.sh`（Claude）、`drive_deepseek.sh`（DeepSeek）、`drive_codex.sh`（Codex）、`grade.sh`（評分）。
+
+### OpenRouter MCP 的實際角色：只拿來「查價」，不拿來實作
+
+5.4 的 `openrouter` MCP 在這次實驗裡**不是實作主力**。它只能做一次性的 `chat-send`，沒辦法自己改檔案、跑測試、迭代——所以讓 DeepSeek 真正動手實作，走的是上面「改 env 的 Claude Code」入口，不是 MCP。這次 MCP 只用在**查 DeepSeek 官方定價與供應商**：
+
+```text
+models-list        查 deepseek-v4-flash / pro 的官方定價
+model-endpoints    查 OpenRouter 上是哪一家在供（例如 DeepInfra、量化版本）
+```
+
+### 一個定價坑（實測才發現，講課要提）
+
+OpenRouter 沒指定供應商時，預設會**路由到最便宜的第三方**（例如 DeepInfra，`fp4` 量化版，約 $0.09 / $0.18），並不是 DeepSeek 官方。DeepSeek **官方**是 **$0.14 / $0.28**（Pro 兩邊同價 $0.435 / $0.87）。做成本比較時要講清楚是用哪一個：
+
+- 走 OpenRouter 第三方 → 可以更便宜，但拿到的可能是**量化過**的模型（fp4 / fp8），不是原生。
+- 要 canonical、可對得上官網 → 用官方 $0.14 / $0.28。
+
+> 本課投影片與 §9 的成本，DeepSeek 一律以**官方定價**換算，並採「無 cache 全價」口徑，數字最保守、最能公平比較不同模型。
+
 ---
 
 # 6. 一個方案怎麼跑：以方案 F 為例（plan → review → implement → verify）
@@ -538,3 +596,45 @@ Codex 942k→294k），但 Sonnet token 反升、Haiku 幾乎持平 → **計畫
 
 > 重跑：`benchmark/runs/` 下的 `clean_run.sh`（Claude）、`drive_deepseek.sh`（DeepSeek）、
 > `score_matrix.py` / `score_deepseek.py`。完整紀錄見 `benchmark/RESULTS.md`。
+
+## 9.3 Fable 5 規劃版（對應本課投影片，無 cache 全價）
+
+這一節對應課程投影片的三個場景：**留著 Fable 5 的規劃，只把「誰來實作」換掉**。成本改採「**無 cache 全價**」口徑——每個輸入 token 都以全價估算、DeepSeek 用官方定價——是最保守、最能公平比較不同模型的算法（所以數字會比 §9.2 的「實際帳單」高）。全部 74/74。
+
+**規劃階段（一次性，可攤提給很多支任務）**
+
+| 規劃者 | 回合 | 時間 | 輸入 token | 輸出 token | 無cache成本 |
+| --- | --: | --: | --: | --: | --: |
+| Fable 5 | 11 | 91s | 121,746 | 6,724 | $1.55 |
+| Opus 4.8 | 15 | 92s | 223,053 | 7,111 | $1.29 |
+
+（注意：Opus 規劃其實比 Fable 便宜——Fable 單價貴一倍。）
+
+**實作階段（照 Fable 5 的計畫，由便宜到貴）**
+
+| 實作者 | 回合 | 時間 | 輸入 token | 輸出 token | 無cache成本 |
+| --- | --: | --: | --: | --: | --: |
+| **DeepSeek Flash** | 20 | 59s | 380,762 | 5,777 | **$0.06** |
+| DeepSeek Pro | 40 | 161s | 837,879 | 8,142 | $0.37 |
+| Haiku 4.5 | 21 | 98s | 736,308 | 8,129 | $0.78 |
+| Opus 4.8 | 14 | 70s | 321,180 | 4,773 | $1.73 |
+| Fable 5 | 15 | 62s | 235,310 | 4,695 | $2.59 |
+| Sonnet 5 | 20 | 90s | 868,441 | 5,553 | $2.69 |
+| Codex gpt-5.5 | ~ | 210s | 1,130,693 | 9,645 | $5.94 |
+
+**三個場景（Fable 規劃 ＋ 各自實作，all-in）**
+
+| 場景 | 規劃 | 實作 | 總計 | vs 全 Fable |
+| --- | --: | --: | --: | --: |
+| 全程 Fable 5 | $1.55 | $2.59 | **$4.14** | 基準 |
+| Fable 規劃 ＋ Opus 實作 | $1.55 | $1.73 | **$3.28** | 少 21% |
+| Fable 規劃 ＋ DeepSeek Flash 實作 | $1.55 | $0.06 | **$1.61** | **少 61%** |
+
+結論（呼應標題「把 Fable 5 的效益發揮最大」）：
+
+- **Fable 5 最值錢的地方是「規劃」**：一份高品質計畫寫好之後，實作交給誰都能拿到 74/74。
+- **把實作換成 DeepSeek Flash，總價省六成**（$4.14 → $1.61），品質完全不變。
+- **到最便宜端，超過 96% 的錢都在規劃**——所以「規劃者」也要挑：同樣的計畫品質下，Opus 規劃（$1.29）其實比 Fable（$1.55）便宜，要再省可以考慮用 Opus 當規劃者。
+- 官方定價（每一百萬個字）：Fable 5 $10/$50、Opus 4.8 $5/$25、Sonnet 5 $3/$15、Haiku 4.5 $1/$5、DeepSeek Flash $0.14/$0.28、Pro $0.435/$0.87、Codex(gpt-5.5) $5/$30。
+
+> 投影片檔：`demo/cost-lab-deck.html`（白底、8 頁、自包含，可本地開、可編輯）。
