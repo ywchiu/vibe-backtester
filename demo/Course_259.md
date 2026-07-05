@@ -15,16 +15,21 @@
 npm install -g @anthropic-ai/claude-code
 ```
 
+把 OpenRouter 金鑰放進**專案根目錄的 `.env`**（1.3 的函式會自動讀取，不用手動 export）：
+
 ```bash
-export OPENROUTER_API_KEY="sk-or-xxxxxxxx"
+# .env（務必加進 .gitignore，不要 commit）
+OPENROUTER_KEY="sk-or-xxxxxxxx"
+```
+
+公司網路或代理環境如果出現憑證錯誤，再另外設定：
+
+```bash
 export NODE_EXTRA_CA_CERTS=/etc/ssl/cert.pem
 ```
 
-若寫入 `~/.zshrc`，再執行 `source ~/.zshrc`。
-
-> `OPENROUTER_API_KEY` 是給 Claude Code 的 DeepSeek 實作入口使用，不是拿來改一般 `claude`。
-> 公司網路或代理環境如果出現憑證錯誤，再設定 `NODE_EXTRA_CA_CERTS`。
-> 這裡不要設定 `ANTHROPIC_BASE_URL` 或 `ANTHROPIC_AUTH_TOKEN`，不然整個 Claude Code 都會改走 OpenRouter。
+> 這把金鑰只給「1.3 的 OpenRouter 入口」使用，不是拿來改一般 `claude`。
+> 也不要在一般 shell 設 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`，不然整個 Claude Code 都會改走 OpenRouter。
 
 ## 1.2 原生 Claude Code
 
@@ -42,7 +47,7 @@ claude
 
 - https://openrouter.ai/docs/cookbook/coding-agents/claude-code-integration
 
-這一段是用 Claude Code 呼叫 OpenRouter 上的模型。把下面這個**通用**函式加到 `~/.zshrc`，之後第一個參數接模型名稱就能切換，不用為每個模型各寫一份：
+這一段是用 Claude Code 呼叫 OpenRouter 上的模型。把下面這個**通用**函式加到 `~/.zshrc`：它會自動讀當前目錄的 `.env`（金鑰放在 `OPENROUTER_KEY`），第一個參數接模型名稱就能切換——不用為每個模型各寫一份，也不用把金鑰寫死：
 
 ```bash
 vi ~/.zshrc
@@ -50,8 +55,12 @@ vi ~/.zshrc
 
 ```bash
 claude-openrouter() {
+  # 若當前目錄有 .env，載進來（金鑰放這裡，不寫死在函式）
+  [ -f .env ] && { set -a; source .env; set +a; }
+  # 兩種命名都接受：環境變數 OPENROUTER_API_KEY，或 .env 裡的 OPENROUTER_KEY
+  : "${OPENROUTER_API_KEY:=$OPENROUTER_KEY}"
   if [ -z "$OPENROUTER_API_KEY" ]; then
-    echo "請先設定 OPENROUTER_API_KEY"
+    echo "請先設定 OPENROUTER_API_KEY，或在 .env 放 OPENROUTER_KEY"
     return 1
   fi
   local model="${1:?用法: claude-openrouter <model-slug> [claude 參數...]}"
