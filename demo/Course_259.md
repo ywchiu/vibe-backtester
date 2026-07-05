@@ -38,31 +38,33 @@ claude
 
 
 
-## 1.3 Claude Code 調用 DeepSeek
+## 1.3 Claude Code 調用 OpenRouter 模型（DeepSeek 等）
 
 - https://openrouter.ai/docs/cookbook/coding-agents/claude-code-integration
 
-這一段是用 Claude Code 呼叫 OpenRouter 的 DeepSeek。把下面函式加到 `~/.zshrc`：
+這一段是用 Claude Code 呼叫 OpenRouter 上的模型。把下面這個**通用**函式加到 `~/.zshrc`，之後第一個參數接模型名稱就能切換，不用為每個模型各寫一份：
 
 ```bash
 vi ~/.zshrc
 ```
 
 ```bash
-claude-deepseek() {
+claude-openrouter() {
   if [ -z "$OPENROUTER_API_KEY" ]; then
     echo "請先設定 OPENROUTER_API_KEY"
     return 1
   fi
+  local model="${1:?用法: claude-openrouter <model-slug> [claude 參數...]}"
+  shift
 
   env \
     ANTHROPIC_BASE_URL="https://openrouter.ai/api" \
     ANTHROPIC_AUTH_TOKEN="$OPENROUTER_API_KEY" \
     ANTHROPIC_API_KEY="" \
-    ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek/deepseek-v4-flash" \
-    ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek/deepseek-v4-flash" \
-    ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek/deepseek-v4-flash" \
-    CLAUDE_CODE_SUBAGENT_MODEL="deepseek/deepseek-v4-flash" \
+    ANTHROPIC_DEFAULT_OPUS_MODEL="$model" \
+    ANTHROPIC_DEFAULT_SONNET_MODEL="$model" \
+    ANTHROPIC_DEFAULT_HAIKU_MODEL="$model" \
+    CLAUDE_CODE_SUBAGENT_MODEL="$model" \
     claude --model sonnet "$@"
 }
 ```
@@ -73,13 +75,18 @@ claude-deepseek() {
 source ~/.zshrc
 ```
 
-`deepseek/deepseek-v4-flash` 請填 OpenRouter 模型頁顯示的完整名稱。如果頁面顯示成 `~deepseek/deepseek-v4-flash`，就把函式裡的四個模型名稱都改成那個。想測 DeepSeek Pro 時，把模型名稱換成對應的 Pro 版本即可。
+用法是第一個參數接 OpenRouter 模型頁上顯示的完整名稱（若頁面顯示成 `~deepseek/...` 開頭就照著填）：
+
+```bash
+claude-openrouter deepseek/deepseek-v4-flash    # DeepSeek Flash
+claude-openrouter deepseek/deepseek-v4-pro      # 想改測 Pro 就換這個
+```
 
 先確認這個入口真的有走 OpenRouter：
 
 ```bash
 cd /Users/david/course/vibe-backtester
-claude-deepseek
+claude-openrouter deepseek/deepseek-v4-flash
 ```
 
 進入 Claude Code 後執行：
@@ -125,7 +132,7 @@ env \
     --setting-sources "" --output-format json --dangerously-skip-permissions
 ```
 
-這就是 1.3 那個 `claude-deepseek` 函式的 headless 版——**同一組 env 變數，只是不進互動模式**。金鑰這次放在專案根目錄的 `.env`（變數名是 `OPENROUTER_KEY`），腳本讀出來再設成 `OPENROUTER_API_KEY`。想測 DeepSeek Pro 就把模型名換成 `deepseek/deepseek-v4-pro`。
+這就是 1.3 那個 `claude-openrouter` 函式的 headless 版——**同一組 env 變數，只是不進互動模式**。金鑰這次放在專案根目錄的 `.env`（變數名是 `OPENROUTER_KEY`），腳本讀出來再設成 `OPENROUTER_API_KEY`。想測 DeepSeek Pro 就把模型名換成 `deepseek/deepseek-v4-pro`。
 
 ---
 
@@ -152,7 +159,7 @@ NaN、short position 邏輯等），產出修復計畫到 docs/agent-plans/level
 
 ```bash
 cd /Users/david/course/vibe-backtester
-claude-deepseek
+claude-openrouter deepseek/deepseek-v4-flash
 ```
 
 進入後先 `/status` 確認有顯示 `ANTHROPIC_AUTH_TOKEN` 和 `https://openrouter.ai/api`，再貼：
