@@ -127,10 +127,10 @@ Anthropic base URL: https://openrouter.ai/api
 請只做規劃，不要修改任何程式碼。
 
 目標：完成 benchmark 的三關，讓每一關的測試都通過，且不得改動測試。
-- Level 1：實作 level1/indicators.py 的技術指標（SMA、EMA、每日／累積報酬、最大回撤）。
-- Level 2：實作 level2/backtester.py 的回測器（讀 OHLCV＋買賣訊號、模擬持倉、
+- Level 1：實作 benchmark/level1/indicators.py 的技術指標（SMA、EMA、每日／累積報酬、最大回撤）。
+- Level 2：實作 benchmark/level2/backtester.py 的回測器（讀 OHLCV＋買賣訊號、模擬持倉、
   扣交易成本、算出報酬率／波動率／Sharpe／最大回撤／勝率，且不得偷看未來）。
-- Level 3：修好 level3/backtester/ 裡故意埋的 bug（交易成本、signal shift、
+- Level 3：修好 benchmark/level3/backtester/ 裡故意埋的 bug（交易成本、signal shift、
   max drawdown、NaN、short position 邏輯等），讓測試通過。
 
 請先讀三關的 README 與程式，產出實作計畫到 PLAN.md，每關包含：
@@ -141,46 +141,49 @@ Anthropic base URL: https://openrouter.ai/api
 
 ## 2.2 便宜模型：照計畫完成三關（DeepSeek V4 Flash）
 
+不用進互動模式再貼 prompt，直接一行呼叫（`-p` 就是 headless，任務寫在裡面）：
+
 ```bash
 cd /Users/david/course/vibe-backtester
-claude-openrouter deepseek/deepseek-v4-flash
+claude-openrouter deepseek/deepseek-v4-flash \
+  --output-format json --dangerously-skip-permissions \
+  -p "$(cat <<'EOF'
+依 PLAN.md 完成三關。只改這三處，不得改動任何 tests/ 下的檔案，不要擴張範圍：
+  benchmark/level1/indicators.py
+  benchmark/level2/backtester.py
+  benchmark/level3/backtester/*.py
+每關都跑 public tests，直到通過：
+  python -m pytest benchmark/level1/tests -q
+  python -m pytest benchmark/level2/tests -q
+  python -m pytest benchmark/level3/tests -q
+完成後回報：改了哪些檔案 / 三關測試結果 / 還有哪些風險。
+EOF
+)"
 ```
 
-進入後先 `/status` 確認有顯示 `ANTHROPIC_AUTH_TOKEN` 和 `https://openrouter.ai/api`，再貼：
+`claude-openrouter` 會自動讀 `.env`、把端點指向 OpenRouter；`--output-format json` 會把
+`num_turns` / `duration_ms` / `total_cost_usd` / `usage`（token）一起吐出來，方便記成本。
 
-```text
-這一段請用 OpenRouter 的 deepseek/deepseek-v4-flash。
-
-請直接修改檔案，依 PLAN.md 完成三關：
-- 只改 level1/indicators.py、level2/backtester.py、level3/backtester/*.py。
-- 不得改動任何 tests/ 下的檔案，不要擴張範圍。
-- 每關都跑 public tests 驗證，直到通過：
-    python -m pytest level1/tests -q
-    python -m pytest level2/tests -q
-    python -m pytest level3/tests -q
-
-完成後回報：改了哪些檔案 / 做了什麼 / 三關測試結果 / 還有哪些風險。
-完成後請回到原生 Claude Code 做最後確認。
-```
+> 想改用其他實作者，只要換第一個參數即可：例如原生 Opus 用 `claude -p "..." --model opus`，
+> 或 DeepSeek Pro 用 `claude-openrouter deepseek/deepseek-v4-pro -p "..."`。
 
 ## 2.3 驗證：跑三關的 public + hidden tests
 
 三關的 public tests 一次跑：
 
-```text
-python -m pytest benchmark/level1 benchmark/level2 benchmark/level3 -q
+```bash
+benchmark/.venv/bin/python -m pytest benchmark/level1 benchmark/level2 benchmark/level3 -q
 ```
 
-hidden tests 由評分腳本負責（受測者看不到）：
+要連 hidden tests 一起評（受測者看不到 hidden，交給腳本）：
 
-```text
-bash benchmark/grade.sh <solution-dir>
+```bash
+bash benchmark/grade.sh demo
 ```
 
-測試失敗時，不要繼續加功能，先請模型修最小錯誤：
+`grade.sh <name>` 會把你在 `benchmark/` 就地改好的解答，覆蓋到一份含 `_grader` 隱藏測試的
+乾淨評分樹再跑，輸出每關 public＋hidden 的 pass 數（`<name>` 只是這次評分的標籤，隨便取）。
 
-```text
-測試失敗，請只做最小修正。
-先說明是哪一關、失敗原因，再修改程式碼，最後重跑該關的 pytest。
-```
+測試失敗時，不要繼續加功能，回頭叫模型只做最小修正：先說明是哪一關、失敗原因，
+再改程式，最後重跑該關的 pytest。
 
