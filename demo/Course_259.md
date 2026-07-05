@@ -1,190 +1,18 @@
 # [Vibe Coding] 如何透過混用模型將 Fable 5 的效益發揮最大?!
 
-這堂課不是「AI coding 做網站省錢」，也不是「用 AI 做會賺錢的策略」。
 
-核心問題只有一個：
 
 > **同一批 coding 任務，不同模型／工具完成時，誰最省、誰最快、誰最穩？而哪一種「模型使用策略」最划算？**
 
-我們用一個可以自動驗收的量化回測系統當題材，把它切成由簡到難的四層任務，量測每個方案的時間、token、成本、成功率與程式品質，最後產出一張可以反覆更新的比較表。
+
 
 ---
+# 1. 環境準備
 
-# 0. 為什麼用量化回測系統，而不是做網站？
-
-做網站很容易變成主觀評比：UI 好不好看、RWD 細不細、切版漂不漂亮，都不好自動驗證，最後容易變成「這個模型比較會用 Tailwind」而不是「這個模型比較會寫程式」。
-
-量化回測系統剛好相反，適合當 benchmark：
-
-| 優點 | 說明 |
-| --- | --- |
-| 可以自動驗收 | SMA/RSI/報酬率/最大回撤算對沒有、交易成本有沒有扣、有沒有偷看未來，全部能用 test 驗證 |
-| 難度可自然分層 | 從單一函式到修整包 repo，難度階梯很平順，不會被一個小 UI 問題卡死 |
-| 容易展示成本差異 | 便宜模型寫得出指標，但回測邏輯、抓 look-ahead bias 就開始拉開差距 |
-| 接近真實商業場景 | 比純演算法題更工程化，又比網站更好量測 |
-
-**定位要記住**：我們不是教大家用 AI 做賺錢策略，而是教大家用 AI coding 建立一個**可驗證、可重現、不偷看未來**的金融分析系統。
-
----
-
-# 1. 任務設計：四層 benchmark
-
-每一層都提供固定資料、public tests 與 hidden tests，並限制互動輪數與時間。誤差容忍一律 `1e-6`。
-
-## Level 1：技術指標計算（測基本執行力）
-
-要求模型實作純函式：
-
-* SMA、EMA
-* daily return、cumulative return
-* max drawdown
-
-驗收：給固定 CSV → 跑 `pytest` → 比對標準答案。
-
-這一關測的是：能不能照規格寫 function、懂不懂金融時間序列、會不會處理 `NaN`。便宜模型（DeepSeek 這類）通常在這關就表現不錯。
-
-## Level 2：建立簡單回測器（測工程整合）
-
-要求：讀入 OHLCV → 接收買賣訊號 → 模擬持倉 → 扣交易成本 → 輸出 metrics。
-
-Metrics 至少包含：total return、annualized return、volatility、Sharpe ratio、max drawdown、number of trades、win rate。
-
-固定條件：起始資金 `100,000`、交易成本 `10 bps`。
-
-驗收：public test 測基本案例、hidden test 測邊界案例、檢查是否有 look-ahead bias。
-
-這關開始拉開差距，便宜模型常犯：報酬率公式錯、交易成本扣錯、持倉時點錯一格、偷看當天 close 又用當天 close 買、Sharpe 年化錯、max drawdown 算錯。
-
-## Level 3：修復有 bug 的回測系統（測 agent coding／debugging）
-
-給模型一個 starter repo，裡面**故意埋 bug**：transaction cost 沒扣、signal shift 錯誤、max drawdown 寫錯、`NaN` 沒處理、short position 邏輯錯，測試有一半 failing。
-
-任務指令：
-
-```text
-請修復這個回測系統，讓所有測試通過，且不得改動測試。
-```
-
-這關最適合測 Codex、Claude Code、Fable 這類 agent 型工具：它不是從零生成，而是讀 repo → 找根因 → 改 code → 跑測試 → 再修正，最接近真實工作。
-
-## Level 4：加入 walk-forward validation（高難，可選）
-
-要求 train/test split、rolling window、參數搜尋、防 overfitting、產出 summary report。規格要**寫死**避免自由發揮：
-
-```text
-使用 252 天訓練，63 天測試，rolling window。
-每次只用訓練區間選參數。
-不得使用測試區間資料調參。
-```
-
-測的是複雜需求理解、防資料洩漏、架構設計與可維護性 —— 高階模型勝出的地方。
-
----
-
-# 2. 評估標準：三層
-
-## 第一層：自動測試（主評分，最重要）
-
-能用程式驗證的，全部用程式驗證，**不要交給 LLM judge**。
-
-| 項目 | 權重 |
-| --- | --: |
-| public tests pass | 20% |
-| hidden tests pass | 40% |
-| no look-ahead bias | 15% |
-| deterministic output | 10% |
-| edge cases | 15% |
-
-## 第二層：LLM-as-judge（只做輔助）
-
-LLM judge 評 code 可讀性、架構清晰度、是否過度複雜、是否 hard-code 測試答案、可維護性。
-
-**但不要讓 LLM judge 決定「有沒有完成」** —— 完成與否由 tests 決定。
-
-| 評估項目 | 評估者 |
-| --- | --- |
-| correctness | pytest / hidden tests |
-| performance | benchmark script |
-| cost | token logger |
-| maintainability | LLM judge + human spot check |
-| final ranking | 加權分數 |
-
-## 第三層：成本效率分數（本課最有價值的地方）
-
-不要只比總花費，要比「有效完成成本」：
-
-```text
-Cost per accepted task = 總成本 / 通過任務數
-```
-
-也可以做一個一看就懂的分數：
-
-```text
-Efficiency Score = 任務得分 / (成本 × 人工介入次數 × 時間)
-```
-
----
-
-# 3. 比較對象：不是「模型」，是「方案」
-
-真正要比較的不是哪個模型最強，而是哪一種**使用策略**最划算。
-
-| 方案 | 說明 |
-| --- | --- |
-| A. 全程 Sonnet | 高品質但可能貴 |
-| B. 全程 Fable | 測規劃與複雜任務能力 |
-| C. 全程 OpenAI / Codex | 測 agent 修 code 能力 |
-| D. 全程 DeepSeek Pro | 測低成本直跑效果 |
-| E. 便宜模型 + 高階模型 review | 測省錢分工 |
-| F. 高階模型 plan + 便宜模型 implement + Codex review | 主打方案 |
-
-我們預期最有教學價值的是 **F**：
-
-> **高階模型負責想，便宜模型負責寫，Codex／高階模型負責驗。**
-
-對應到分工建議：
-
-| 任務類型 | 適合模型 |
-| --- | --- |
-| 指標計算、資料清理 | 便宜模型即可 |
-| 回測邏輯 | 中階或高階模型 |
-| 找 look-ahead bias、審查策略假設 | 高階模型 / Codex |
-| 重構架構 | Sonnet / Fable / Codex |
-
-課程結論一句話：
-
-> **AI coding 省錢不是選最便宜的模型，而是把任務拆對，讓不同模型做不同工作。貴模型不要拿來寫所有 code，要拿來規劃、抓錯、審查。**
-
----
-
-# 4. 實驗流程
-
-每個方案都跑同一套流程，才能公平比較：
-
-```text
-1. 建立乾淨 repo
-2. 給同一份任務 prompt
-3. 限制最多互動輪數（例如 5 輪）
-4. 限制最多時間（例如 30 分鐘）
-5. 記錄 input / output / cached token
-6. 記錄實際花費
-7. 跑 public tests
-8. 跑 hidden tests
-9. 跑 code quality review（LLM judge）
-10. 產生比較表
-```
-
----
-
-# 5. 環境準備：怎麼讓每個方案跑同一套任務
-
-下面是把「原生 Claude Code / Codex / OpenRouter 的 DeepSeek」都準備好的實際步驟，讓你可以用同一台機器切換不同方案跑 benchmark。
-
-## 5.1 安裝
+## 1.1 安裝
 
 ```bash
 npm install -g @anthropic-ai/claude-code
-npm install -g @openai/codex
 ```
 
 ```bash
@@ -198,16 +26,7 @@ export NODE_EXTRA_CA_CERTS=/etc/ssl/cert.pem
 > 公司網路或代理環境如果出現憑證錯誤，再設定 `NODE_EXTRA_CA_CERTS`。
 > 這裡不要設定 `ANTHROPIC_BASE_URL` 或 `ANTHROPIC_AUTH_TOKEN`，不然整個 Claude Code 都會改走 OpenRouter。
 
-安裝 OpenRouter MCP 工具到 Claude Code：
-
-```bash
-claude mcp add --transport http openrouter https://mcp.openrouter.ai/mcp
-claude mcp login openrouter
-```
-
-登入時會開 OpenRouter 授權頁面。這把金鑰只給 MCP 連線使用，和你平常的 API 金鑰分開管理。
-
-## 5.2 原生 Claude Code（方案 A/B 的 plan 與高階實作）
+## 1.2 原生 Claude Code
 
 開 Claude Code 前，先確認沒有把它改成全域 OpenRouter：
 
@@ -217,52 +36,13 @@ unset ANTHROPIC_AUTH_TOKEN
 claude
 ```
 
-這樣規劃、審查、與高階模型實作仍然使用原生 Claude Code 的額度。
 
-## 5.3 Codex 外掛（負責挑錯／修 repo，方案 C/E/F 的 review）
 
-在 Claude Code 內：
-
-```text
-/plugin marketplace add openai/codex-plugin-cc
-/plugin install codex@openai-codex
-/reload-plugins
-/codex:setup
-```
-
-確認命令列工具：
-
-```bash
-codex login status
-codex exec --skip-git-repo-check "請只回覆 CODEX_OK"
-```
-
-## 5.4 OpenRouter 官方 MCP（查模型／查用量，非實作主力）
-
-- https://openrouter.ai/docs/mcp-server
-
-先在 Claude Code 內確認 OpenRouter MCP 工具有出現：
-
-```text
-/mcp
-```
-
-上面範例安裝後會叫做 `openrouter`。它適合查模型、查用量、問一次性問題，不是把 Claude Code 整個切成 OpenRouter，也不是讓 DeepSeek 自己改檔案。常用工具：
-
-```text
-chat-send
-models-list
-model-get
-credits-get
-docs-search
-generation-get
-```
-
-## 5.5 Claude Code 的 DeepSeek 寫碼入口（便宜模型負責寫，方案 D/E/F 的 implement）
+## 1.3 Claude Code 調用 DeepSeek
 
 - https://openrouter.ai/docs/cookbook/coding-agents/claude-code-integration
 
-這一段是用 Claude Code 呼叫 OpenRouter 的 DeepSeek，不是 Codex，也不是另一套寫碼工具。把下面函式加到 `~/.zshrc`：
+這一段是用 Claude Code 呼叫 OpenRouter 的 DeepSeek。把下面函式加到 `~/.zshrc`：
 
 ```bash
 vi ~/.zshrc
@@ -293,7 +73,7 @@ claude-deepseek() {
 source ~/.zshrc
 ```
 
-`deepseek/deepseek-v4-flash` 請填 OpenRouter 模型頁顯示的完整名稱。如果頁面顯示成 `~deepseek/deepseek-v4-flash`，就把函式裡的四個模型名稱都改成那個。想測方案 D（DeepSeek Pro）時，把模型名稱換成對應的 Pro 版本即可。
+`deepseek/deepseek-v4-flash` 請填 OpenRouter 模型頁顯示的完整名稱。如果頁面顯示成 `~deepseek/deepseek-v4-flash`，就把函式裡的四個模型名稱都改成那個。想測 DeepSeek Pro 時，把模型名稱換成對應的 Pro 版本即可。
 
 先確認這個入口真的有走 OpenRouter：
 
@@ -317,9 +97,9 @@ Anthropic base URL: https://openrouter.ai/api
 
 如果沒有看到上面兩行，代表這次還不是走 OpenRouter，先不要進實作。一般 `claude` 不受影響，仍然可以拿來跑原生 Opus。
 
-## 5.6 本次實測實際怎麼跑（headless 自動化版）
+## 1.4 headless 自動化跑法（一次跑多個模型、直接量測成本）
 
-上面 5.1–5.5 是「手動、互動式」的示範流程，適合上課現場一步步操作。但這次的完整 benchmark（見 §9）是用 **headless（非互動）** 自動化跑的：把同一組 env 設定包成腳本，讓 6 個模型 × 多種條件可以一鍵重跑、並直接把 token / 時間 / 成本吐成 JSON。三種入口對應三種指令。
+上面 1.1–1.3 是「手動、互動式」的操作。若想一次跑多個模型、並直接量到 token／時間／成本，可改用 **headless（非互動）** 模式：把同一組 env 設定包成腳本、用 `claude -p` 直接把結果吐成 JSON。兩種入口：
 
 **Claude 系列（Opus / Sonnet / Haiku / Fable 5）—— 原生 headless**
 
@@ -345,43 +125,15 @@ env \
     --setting-sources "" --output-format json --dangerously-skip-permissions
 ```
 
-這就是 5.5 那個 `claude-deepseek` 函式的 headless 版——**同一組 env 變數，只是不進互動模式**。金鑰這次放在專案根目錄的 `.env`（變數名是 `OPENROUTER_KEY`），腳本讀出來再設成 `OPENROUTER_API_KEY`。想測 DeepSeek Pro 就把模型名換成 `deepseek/deepseek-v4-pro`。
-
-**Codex（gpt-5.5）—— 直接用 `codex exec` 驅動**
-
-```bash
-codex exec -C <workspace> --sandbox workspace-write --skip-git-repo-check -m gpt-5.5 "<任務>"
-```
-
-（Codex 的 `/codex` rescue subagent 在自動化情境下不穩，會空轉不動手；直接用 `codex exec` 最可靠。）
-
-上面三種入口都包在 `benchmark/runs/` 的腳本裡：`clean_run.sh`（Claude）、`drive_deepseek.sh`（DeepSeek）、`drive_codex.sh`（Codex）、`grade.sh`（評分）。
-
-### OpenRouter MCP 的實際角色：只拿來「查價」，不拿來實作
-
-5.4 的 `openrouter` MCP 在這次實驗裡**不是實作主力**。它只能做一次性的 `chat-send`，沒辦法自己改檔案、跑測試、迭代——所以讓 DeepSeek 真正動手實作，走的是上面「改 env 的 Claude Code」入口，不是 MCP。這次 MCP 只用在**查 DeepSeek 官方定價與供應商**：
-
-```text
-models-list        查 deepseek-v4-flash / pro 的官方定價
-model-endpoints    查 OpenRouter 上是哪一家在供（例如 DeepInfra、量化版本）
-```
-
-### 一個定價坑（實測才發現，講課要提）
-
-OpenRouter 沒指定供應商時，預設會**路由到最便宜的第三方**（例如 DeepInfra，`fp4` 量化版，約 $0.09 / $0.18），並不是 DeepSeek 官方。DeepSeek **官方**是 **$0.14 / $0.28**（Pro 兩邊同價 $0.435 / $0.87）。做成本比較時要講清楚是用哪一個：
-
-- 走 OpenRouter 第三方 → 可以更便宜，但拿到的可能是**量化過**的模型（fp4 / fp8），不是原生。
-- 要 canonical、可對得上官網 → 用官方 $0.14 / $0.28。
-
-> 本課投影片與 §9 的成本，DeepSeek 一律以**官方定價**換算，並採「無 cache 全價」口徑，數字最保守、最能公平比較不同模型。
+這就是 1.3 那個 `claude-deepseek` 函式的 headless 版——**同一組 env 變數，只是不進互動模式**。金鑰這次放在專案根目錄的 `.env`（變數名是 `OPENROUTER_KEY`），腳本讀出來再設成 `OPENROUTER_API_KEY`。想測 DeepSeek Pro 就把模型名換成 `deepseek/deepseek-v4-pro`。
 
 ---
 
-# 6. 一個方案怎麼跑：以方案 F 為例（plan → review → implement → verify）
+# 2. 操作步驟：規劃 → 實作 → 驗證
 
-下面用 Level 3（修 bug repo）示範方案 F 的完整一輪。其他 Level 只要把任務 prompt 換掉、其餘流程不變。
+下面用 Level 3（修 bug repo）示範混用模型的完整一輪：高階模型規劃、便宜模型實作、再跑測試驗證。其他 Level 只要把任務 prompt 換掉、其餘流程不變。
 
-## 6.1 高階模型：先產生修復計畫（原生 Opus，只規劃）
+## 2.1 高階模型：先產生修復計畫（原生 Opus，只規劃）
 
 ```text
 這一段請用原生 Claude Code 的 Opus，不要切到 OpenRouter。
@@ -396,25 +148,7 @@ NaN、short position 邏輯等），產出修復計畫到 docs/agent-plans/level
 限制：不要改程式碼、不要開始實作、不要擴張範圍、不得改動測試。
 ```
 
-## 6.2 Codex：快速挑錯（review 計畫）
-
-```text
-/codex:adversarial-review --background
-請只審查 docs/agent-plans/level3-fix.md，不要實作。
-重點看：根因判斷是否正確、是否漏掉某些 failing test 的成因、是否可能引入
-look-ahead bias、修復是否會破壞其他已通過的測試。
-
-輸出：目前不能開始實作的問題 / 一定要先修的問題 / 可以之後再改善的地方 / 最後建議。
-```
-
-```text
-/codex:status
-/codex:result
-```
-
-如果有「目前不能開始實作的問題」，就回高階模型修計畫；沒有的話就進實作。
-
-## 6.3 便宜模型：實作（DeepSeek V4 Flash，只改計畫內範圍）
+## 2.2 便宜模型：實作（DeepSeek V4 Flash，只改計畫內範圍）
 
 ```bash
 cd /Users/david/course/vibe-backtester
@@ -433,7 +167,7 @@ claude-deepseek
 完成後請回到原生 Claude Code 做最後確認。
 ```
 
-## 6.4 驗證：跑 public + hidden tests
+## 2.3 驗證：跑 public + hidden tests
 
 ```text
 python -m pytest benchmark/level3 -q
@@ -446,195 +180,3 @@ python -m pytest benchmark/level3 -q
 先說明失敗原因，再修改程式碼，最後重跑 python -m pytest benchmark/level3 -q。
 ```
 
-## 6.5 記錄這一輪的量測數據
-
-每跑完一個方案，把下面數字填進比較表：input/output/cached token、實際花費、public/hidden 通過率、是否偵測到 look-ahead bias、人工介入次數、耗時。
-
----
-
-# 7. 成本比較
-
-分開看花費來源：
-
-- 規劃與審查：Claude Code 原本額度。
-- 實作：OpenRouter 後台紀錄。
-- Codex 挑錯：Codex / OpenAI 用量。
-
-示範用定價（每一百萬個計費單位；正式示範前請以實際平台價格更新）：
-
-| 模型 | 輸入 | 輸出 |
-| --- | --- | --- |
-| Opus 4.8 | $5.00 | $25.00 |
-| DeepSeek V4 Pro | $0.435 | $0.87 |
-| DeepSeek V4 Flash | $0.09 | $0.18 |
-| gpt-5.3-codex | $1.75 | $14.00 |
-
-```bash
-python3 demo/cost_compare.py
-```
-
-```text
-情境             總成本    和全用 Opus 相比
--------------------------------------------
-全用 Opus    $    2.350    基準
-Opus + V4 Pro    $    0.633    -73%
-Opus + V4 Flash  $    0.556    -76%
-```
-
-```text
-全用 Opus        所有階段都用原生 Claude Code 的 Opus 4.8（對應方案 A 的高階版）
-Opus + V4 Pro    規劃用 Opus，實作用 OpenRouter 的 DeepSeek V4 Pro，檢查用 Codex（方案 F）
-Opus + V4 Flash  規劃用 Opus，實作用 OpenRouter 的 DeepSeek V4 Flash，檢查用 Codex（方案 F）
-```
-
-> 金額要用 Claude Code、OpenRouter、Codex 各自的實際用量換算。
-
----
-
-# 8. 財經／量化題目的三個坑
-
-### 坑一：不要測「策略績效」
-
-不要問「哪個模型做出的策略報酬率最高？」—— 這會變成亂試參數。
-要問「哪個模型能正確建立一個不偷看未來、可測試、可重現的回測系統？」
-
-### 坑二：不要接真實交易 API
-
-課程內不接 Binance、IB、券商 API 下單。最多做到 historical data、backtest、paper trading interface、mock broker、report generation。這樣安全，也不會變成投資建議。
-
-### 坑三：資料要固定
-
-不要讓模型自己去抓 Yahoo Finance 或即時資料。提供固定 CSV：
-
-```text
-data/
-  sample_ohlcv_a.csv
-  sample_ohlcv_b.csv
-  hidden_ohlcv.csv
-```
-
-這樣每次 benchmark 結果才可重現。
-
----
-
-# 9. 最終產出：一張比較表
-
-課程尾聲把所有方案的量測結果彙整成表（分數為示意，實跑後填入）：
-
-| 方案 | Level 1 | Level 2 | Level 3 | 總成本 | 時間 | 人工介入 | 結論 |
-| --- | ------: | ------: | ------: | --: | -: | ---: | --- |
-| DeepSeek only | 95 | 75 | 40 | 低 | 中 | 高 | 適合簡單任務 |
-| Sonnet only | 98 | 90 | 82 | 高 | 中 | 中 | 穩但成本高 |
-| Codex only | 95 | 88 | 90 | 中高 | 快 | 低 | 修 repo 很強 |
-| Fable only | 96 | 90 | 88 | 高 | 中 | 低 | 複雜規劃強 |
-| 分工模式（F） | 96 | 88 | 85 | 中低 | 中 | 中低 | 最划算 |
-
-這張表就是整堂課的結論：**把任務拆對，讓不同模型做不同工作，比單選一個「最便宜」或「最強」的模型都划算。**
-
-## 9.1 首次實測（2026-07-04，本 repo 的 benchmark）
-
-用本 repo 的 `benchmark/`（Level 1–3）實際跑一輪，每個模型在隔離資料夾 `runs/<model>/`
-作答，看不到 `_grader/` 與 hidden 測試，完成後用 `grade.sh` 跑 public + hidden 評分：
-
-| 方案 | L1 (22) | L2 (27) | L3 public (11) | L3 hidden (14) | 總分 /74 | 結論 |
-| --- | --: | --: | --: | --: | --: | --- |
-| Opus 4.8 | 22 | 27 | 11 | 14 | **74** | 全過（含 hidden） |
-| Sonnet 5 | 22 | 27 | 11 | 14 | **74** | 全過（含 hidden） |
-| Codex gpt-5.5 | 22 | 27 | 11 | 14 | **74** | 全過；~115k tokens |
-| Haiku 4.5 | 22 | 27 | 11 | 14 | **74** | 全過，但 L3 需最多輪次 |
-
-四個都滿分。但這是第一輪、環境未隔離乾淨；後續做了嚴謹版（見下）。
-
-## 9.2 乾淨隔離版：solo vs Opus規劃，含 DeepSeek（全部 74/74）
-
-隔離做法：workspace 建在 repo 外、`claude -p --setting-sources ""` 停用所有 skills/hooks
-（避免 harness 的 skill 把便宜模型帶偏）、每 run 全新 process、hidden 測試評分。
-DeepSeek 走方案 F（Claude Code 指向 OpenRouter 的 deepseek-v4-flash/pro）。成本為實際帳單
-（DeepSeek/Codex 用官方 token 定價換算）。**六個模型在兩種條件下都拿到 74/74，差別只在成本。**
-
-單幹（solo）三維度：
-
-| 實作者 | 時間 | token | 成本 |
-| --- | --: | --: | --: |
-| **DeepSeek V4 Flash** | 143s | 888k | **$0.080** |
-| Haiku 4.5 | 134s | 1.01M | $0.218 |
-| DeepSeek V4 Pro | 166s | 529k | $0.222 |
-| Sonnet 5 | 98s | 550k | $0.457 |
-| Opus 4.8 | 101s | 396k | $0.559 |
-| Codex gpt-5.5 | 221s | 942k | $1.388 |
-
-Opus 規劃→實作（實作階段三維度；另加一次性計畫 92s / 230k / $0.61，可攤提）：
-
-| 實作者 | 時間 | token | 成本 |
-| --- | --: | --: | --: |
-| **DeepSeek V4 Flash** | 51s | 305k | **$0.028** |
-| Haiku 4.5 | 109s | 960k | $0.194 |
-| DeepSeek V4 Pro | 106s | 422k | $0.174 |
-| Sonnet 5 | 69s | 661k | $0.385 |
-| Opus 4.8 | 63s | 339k | $0.497 |
-| Codex gpt-5.5 | 137s | 294k | $0.732 |
-
-（DeepSeek 成本用 Anthropic usage 語意計算，經 Codex 審查修正 cache 計法。）
-
-三個維度各自的贏家：**最省錢** DeepSeek Flash（$0.080）、**最快** Opus/Sonnet（~100s）、
-**最少 token** Opus（396k）。計畫幾乎都讓每個模型更快、多數更省 token（Flash 888k→305k、
-Codex 942k→294k），但 Sonnet token 反升、Haiku 幾乎持平 → **計畫不保證每個模型都省 token。**
-
-課程真正的結論：
-
-- **規格明確時，最省 = 最便宜模型單幹**：DeepSeek V4 Flash 單幹 **$0.080 拿滿分**，
-  比 Opus 便宜約 7 倍、比 Codex 便宜約 17 倍。
-- **Opus 計畫讓每個實作者都更快更省（per-run）**：DeepSeek Flash 從 $0.080→$0.028、
-  143s→51s。但單一交付物加上 $0.61 計畫多半不划算。
-- **方案 F 的甜蜜點是「攤提」與「難題」**：一份 Opus 計畫餵給 DeepSeek Flash 做很多支任務，
-  每支只要 ~$0.03，量大時就趨近 DeepSeek 的價、又有 Opus 等級的規劃品質；或任務模糊到
-  便宜模型單幹會失敗時，計畫才從「浪費」變「必要」。
-- **Codex 成本 run-to-run 波動大（~2×）**：同條件跑 3 次，solo 平均 $1.28、fplan 平均 $1.46，
-  範圍重疊 → 「先規劃是否更省」對 Codex 落在雜訊內，單次數字不能當定值（正確率則穩定 74/74）。
-- **提醒**：本 benchmark 的 README 把公式都寫死了，天生偏向單幹有利；真實模糊需求會把
-  優勢拉回「先規劃再實作」。跟客戶報告時要講清楚，否則數字會被誤讀。
-
-> 重跑：`benchmark/runs/` 下的 `clean_run.sh`（Claude）、`drive_deepseek.sh`（DeepSeek）、
-> `score_matrix.py` / `score_deepseek.py`。完整紀錄見 `benchmark/RESULTS.md`。
-
-## 9.3 Fable 5 規劃版（對應本課投影片，無 cache 全價）
-
-這一節對應課程投影片的三個場景：**留著 Fable 5 的規劃，只把「誰來實作」換掉**。成本改採「**無 cache 全價**」口徑——每個輸入 token 都以全價估算、DeepSeek 用官方定價——是最保守、最能公平比較不同模型的算法（所以數字會比 §9.2 的「實際帳單」高）。全部 74/74。
-
-**規劃階段（一次性，可攤提給很多支任務）**
-
-| 規劃者 | 回合 | 時間 | 輸入 token | 輸出 token | 無cache成本 |
-| --- | --: | --: | --: | --: | --: |
-| Fable 5 | 11 | 91s | 121,746 | 6,724 | $1.55 |
-| Opus 4.8 | 15 | 92s | 223,053 | 7,111 | $1.29 |
-
-（注意：Opus 規劃其實比 Fable 便宜——Fable 單價貴一倍。）
-
-**實作階段（照 Fable 5 的計畫，由便宜到貴）**
-
-| 實作者 | 回合 | 時間 | 輸入 token | 輸出 token | 無cache成本 |
-| --- | --: | --: | --: | --: | --: |
-| **DeepSeek Flash** | 20 | 59s | 380,762 | 5,777 | **$0.06** |
-| DeepSeek Pro | 40 | 161s | 837,879 | 8,142 | $0.37 |
-| Haiku 4.5 | 21 | 98s | 736,308 | 8,129 | $0.78 |
-| Opus 4.8 | 14 | 70s | 321,180 | 4,773 | $1.73 |
-| Fable 5 | 15 | 62s | 235,310 | 4,695 | $2.59 |
-| Sonnet 5 | 20 | 90s | 868,441 | 5,553 | $2.69 |
-| Codex gpt-5.5 | ~ | 210s | 1,130,693 | 9,645 | $5.94 |
-
-**三個場景（Fable 規劃 ＋ 各自實作，all-in）**
-
-| 場景 | 規劃 | 實作 | 總計 | vs 全 Fable |
-| --- | --: | --: | --: | --: |
-| 全程 Fable 5 | $1.55 | $2.59 | **$4.14** | 基準 |
-| Fable 規劃 ＋ Opus 實作 | $1.55 | $1.73 | **$3.28** | 少 21% |
-| Fable 規劃 ＋ DeepSeek Flash 實作 | $1.55 | $0.06 | **$1.61** | **少 61%** |
-
-結論（呼應標題「把 Fable 5 的效益發揮最大」）：
-
-- **Fable 5 最值錢的地方是「規劃」**：一份高品質計畫寫好之後，實作交給誰都能拿到 74/74。
-- **把實作換成 DeepSeek Flash，總價省六成**（$4.14 → $1.61），品質完全不變。
-- **到最便宜端，超過 96% 的錢都在規劃**——所以「規劃者」也要挑：同樣的計畫品質下，Opus 規劃（$1.29）其實比 Fable（$1.55）便宜，要再省可以考慮用 Opus 當規劃者。
-- 官方定價（每一百萬個字）：Fable 5 $10/$50、Opus 4.8 $5/$25、Sonnet 5 $3/$15、Haiku 4.5 $1/$5、DeepSeek Flash $0.14/$0.28、Pro $0.435/$0.87、Codex(gpt-5.5) $5/$30。
-
-> 投影片檔：`demo/cost-lab-deck.html`（白底、8 頁、自包含，可本地開、可編輯）。
