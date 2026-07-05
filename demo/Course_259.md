@@ -113,58 +113,33 @@ Anthropic base URL: https://openrouter.ai/api
 
 如果沒有看到上面兩行，代表這次還不是走 OpenRouter，先不要進實作。一般 `claude` 不受影響，仍然可以拿來跑原生 Opus。
 
-## 1.4 headless 自動化跑法（一次跑多個模型、直接量測成本）
-
-上面 1.1–1.3 是「手動、互動式」的操作。若想一次跑多個模型、並直接量到 token／時間／成本，可改用 **headless（非互動）** 模式：把同一組 env 設定包成腳本、用 `claude -p` 直接把結果吐成 JSON。兩種入口：
-
-**Claude 系列（Opus / Sonnet / Haiku / Fable 5）—— 原生 headless**
-
-```bash
-claude -p "<任務或計畫>" --model opus \
-  --setting-sources "" \
-  --output-format json \
-  --dangerously-skip-permissions
-```
-
-- `--setting-sources ""`：停用 CLAUDE.md / skills / hooks / plugins（但保留登入）。讓每個模型都是「乾淨裸模型」，行為不被 harness 的 skill 帶偏——沒關掉時，便宜模型會被 `writing-plans` skill 帶走、把整段時間拿去寫計畫、一行 code 都沒實作。
-- `--output-format json`：回傳裡有 `num_turns` / `duration_ms` / `total_cost_usd` / `usage`，token、時間、成本一次到位（不必另外算）。
-
-**DeepSeek（透過 OpenRouter）—— 同一個 Claude Code，只把 env 改走 OpenRouter**
-
-```bash
-env \
-  ANTHROPIC_BASE_URL="https://openrouter.ai/api" \
-  ANTHROPIC_AUTH_TOKEN="$OPENROUTER_API_KEY" \
-  ANTHROPIC_API_KEY="" \
-  ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek/deepseek-v4-flash" \
-  claude -p "<任務>" --model sonnet \
-    --setting-sources "" --output-format json --dangerously-skip-permissions
-```
-
-這就是 1.3 那個 `claude-openrouter` 函式的 headless 版——**同一組 env 變數，只是不進互動模式**。金鑰這次放在專案根目錄的 `.env`（變數名是 `OPENROUTER_KEY`），腳本讀出來再設成 `OPENROUTER_API_KEY`。想測 DeepSeek Pro 就把模型名換成 `deepseek/deepseek-v4-pro`。
-
 ---
 
 # 2. 操作步驟：規劃 → 實作 → 驗證
 
-下面用 Level 3（修 bug repo）示範混用模型的完整一輪：高階模型規劃、便宜模型實作、再跑測試驗證。其他 Level 只要把任務 prompt 換掉、其餘流程不變。
+下面示範混用模型**完成三關（Level 1–3）** 的完整一輪：高階模型先規劃、便宜模型照計畫實作、再跑測試驗證。三關分別是——Level 1 實作技術指標、Level 2 實作回測器、Level 3 修好一個故意埋了 bug 的回測程式。
 
-## 2.1 高階模型：先產生修復計畫（原生 Opus，只規劃）
+## 2.1 高階模型：先產生實作計畫（原生 Opus，只規劃）
 
 ```text
 這一段請用原生 Claude Code 的 Opus，不要切到 OpenRouter。
 
-請只做規劃，不要修改程式碼。
+請只做規劃，不要修改任何程式碼。
 
-目標：修復 benchmark/level3 這個回測系統，讓所有測試通過，且不得改動測試。
-請先讀 repo，找出讓測試 failing 的根因（交易成本、signal shift、max drawdown、
-NaN、short position 邏輯等），產出修復計畫到 docs/agent-plans/level3-fix.md。
-內容只要包含：目標 / 影響檔案 / 疑似根因 / 修復步驟 / 測試方式 / 風險。
+目標：完成 benchmark 的三關，讓每一關的測試都通過，且不得改動測試。
+- Level 1：實作 level1/indicators.py 的技術指標（SMA、EMA、每日／累積報酬、最大回撤）。
+- Level 2：實作 level2/backtester.py 的回測器（讀 OHLCV＋買賣訊號、模擬持倉、
+  扣交易成本、算出報酬率／波動率／Sharpe／最大回撤／勝率，且不得偷看未來）。
+- Level 3：修好 level3/backtester/ 裡故意埋的 bug（交易成本、signal shift、
+  max drawdown、NaN、short position 邏輯等），讓測試通過。
 
-限制：不要改程式碼、不要開始實作、不要擴張範圍、不得改動測試。
+請先讀三關的 README 與程式，產出實作計畫到 PLAN.md，每關包含：
+目標 / 影響檔案 / 作法或疑似根因 / 實作步驟 / 測試方式 / 風險。
+
+限制：只規劃、不要動程式碼、不要擴張範圍、不得改動任何 tests/ 下的檔案。
 ```
 
-## 2.2 便宜模型：實作（DeepSeek V4 Flash，只改計畫內範圍）
+## 2.2 便宜模型：照計畫完成三關（DeepSeek V4 Flash）
 
 ```bash
 cd /Users/david/course/vibe-backtester
@@ -176,23 +151,36 @@ claude-openrouter deepseek/deepseek-v4-flash
 ```text
 這一段請用 OpenRouter 的 deepseek/deepseek-v4-flash。
 
-請直接修改檔案，依 docs/agent-plans/level3-fix.md 修復回測系統。
-範圍只限計畫內列出的檔案，不得改動測試，不要擴張範圍。
+請直接修改檔案，依 PLAN.md 完成三關：
+- 只改 level1/indicators.py、level2/backtester.py、level3/backtester/*.py。
+- 不得改動任何 tests/ 下的檔案，不要擴張範圍。
+- 每關都跑 public tests 驗證，直到通過：
+    python -m pytest level1/tests -q
+    python -m pytest level2/tests -q
+    python -m pytest level3/tests -q
 
-完成後回報：修改了哪些檔案 / 做了什麼 / 跑了哪些測試 / 測試結果 / 還有哪些風險。
+完成後回報：改了哪些檔案 / 做了什麼 / 三關測試結果 / 還有哪些風險。
 完成後請回到原生 Claude Code 做最後確認。
 ```
 
-## 2.3 驗證：跑 public + hidden tests
+## 2.3 驗證：跑三關的 public + hidden tests
+
+三關的 public tests 一次跑：
 
 ```text
-python -m pytest benchmark/level3 -q
+python -m pytest benchmark/level1 benchmark/level2 benchmark/level3 -q
+```
+
+hidden tests 由評分腳本負責（受測者看不到）：
+
+```text
+bash benchmark/grade.sh <solution-dir>
 ```
 
 測試失敗時，不要繼續加功能，先請模型修最小錯誤：
 
 ```text
 測試失敗，請只做最小修正。
-先說明失敗原因，再修改程式碼，最後重跑 python -m pytest benchmark/level3 -q。
+先說明是哪一關、失敗原因，再修改程式碼，最後重跑該關的 pytest。
 ```
 
